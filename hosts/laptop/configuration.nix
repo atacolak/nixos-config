@@ -15,10 +15,14 @@
       "flakes" 
     ];
 
+  # Enable Tailscale
   services.tailscale = {
     enable = true;
     openFirewall = true;
     };
+
+  # Enable Mosh (automatically manages firewall ports for Tailscale interfaces)
+  programs.mosh.enable = true;
 
   # Bootloader.
   boot.loader.systemd-boot.enable = true;
@@ -111,7 +115,8 @@
     git
     curl
     tailscale
-
+    mosh
+    tmux
   ];
 
   # Some programs need SUID wrappers, can be configured further or are

@@ -109,15 +109,47 @@
 
   # List packages installed in system profile. To search, run:
   # $ nix search wget
-  environment.systemPackages = with pkgs; [
-    vim # Do not forget to add an editor to edit configuration.nix! The Nano editor is also installed by default.
-    wget
-    git
-    curl
-    tailscale
-    mosh
-    tmux
-  ];
+
+environment.systemPackages = with pkgs; [
+  vim
+  wget
+  git
+  curl
+  tailscale
+  mosh
+  tmux
+
+  # terminal / cli
+  ripgrep
+  fd
+  fzf
+  bat
+  eza
+  tree
+  htop
+  btop
+  jq
+  unzip
+  pciutils
+  usbutils
+
+  # hyprland furniture
+  kitty
+  waybar
+  fuzzel
+  mako
+  hyprpaper
+  hyprlock
+  hypridle
+  brightnessctl
+  playerctl
+  networkmanagerapplet
+  pavucontrol
+  wl-clipboard
+  grim
+  slurp
+  nautilus
+]; 
 
   environment.shellAliases = {
   herdr = "mosh sf@ata-ubuntu -- tmux new -A -s herdr";
@@ -177,4 +209,16 @@ nix.gc = {
 };
 
 nix.settings.auto-optimise-store = true;
+
+# hyperland stuff
+
+programs.hyprland = {
+  enable = true;
+  withUWSM = true;
+};
+
+environment.sessionVariables.NIXOS_OZONE_WL = "1";
+
+security.polkit.enable = true;
+services.gnome.gnome-keyring.enable = true;
 }

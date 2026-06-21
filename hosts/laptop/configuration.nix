@@ -10,6 +10,11 @@
       ./hardware-configuration.nix
     ];
 
+  nix.settings.experimental-features = [
+      "nix-command"
+      "flakes" 
+    ];
+
   # Bootloader.
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;

@@ -149,4 +149,32 @@
   # (e.g. man configuration.nix or on https://nixos.org/nixos/options.html).
   system.stateVersion = "26.05"; # Did you read the comment?
 
+
+# boring laptop baseline
+
+hardware.enableRedistributableFirmware = true;
+hardware.graphics.enable = true;
+
+services.fstrim.enable = true;
+services.fwupd.enable = true;
+services.power-profiles-daemon.enable = true;
+
+zramSwap = {
+  enable = true;
+  algorithm = "zstd";
+  memoryPercent = 50;
+};
+
+boot.kernel.sysctl = {
+  "vm.swappiness" = 100;
+  "vm.page-cluster" = 0;
+};
+
+nix.gc = {
+  automatic = true;
+  dates = "weekly";
+  options = "--delete-older-than 14d";
+};
+
+nix.settings.auto-optimise-store = true;
 }

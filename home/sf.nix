@@ -79,7 +79,7 @@
 
     [ui]
     mouse_capture = false
-    mouse_scroll_lines = 6
+    mouse_scroll_lines = 2
 
     [ui.toast]
     delivery = "off"

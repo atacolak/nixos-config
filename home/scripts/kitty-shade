@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Spawn kitty with a tiny per-window background/selection color jitter.
+# This keeps terminals visually related but not identical.
+BASE_BG="${KITTY_BASE_BG:-0b0f14}"
+BASE_SEL="${KITTY_BASE_SEL:-2a3a4a}"
+J="${KITTY_BG_JITTER:-4}"
+
+python3 - <<'PY' "$BASE_BG" "$BASE_SEL" "$J" "$@"
+import os, sys, random, subprocess
+
+def clamp(x):
+    return max(0, min(255, x))
+
+base_bg = sys.argv[1].strip().lstrip("#")
+base_sel = sys.argv[2].strip().lstrip("#")
+J = int(sys.argv[3])
+
+random.seed((os.getpid() << 16) ^ int.from_bytes(os.urandom(8), "little"))
+
+def jitter(hexrgb, jr, jg, jb):
+    r = int(hexrgb[0:2], 16)
+    g = int(hexrgb[2:4], 16)
+    b = int(hexrgb[4:6], 16)
+    r = clamp(r + random.randint(-jr, jr))
+    g = clamp(g + random.randint(-jg, jg))
+    b = clamp(b + random.randint(-jb, jb))
+    return f"{r:02x}{g:02x}{b:02x}"
+
+jr = max(1, J // 2)
+jg = max(1, J // 2)
+jb = max(1, J)
+
+bg = jitter(base_bg, jr, jg, jb)
+sel = jitter(base_sel, jr, jg, jb)
+kitty_args = sys.argv[4:]
+
+cmd = [
+    "kitty",
+    "--override", f"background=#{bg}",
+    "--override", f"selection_background=#{sel}",
+    *kitty_args,
+]
+
+raise SystemExit(subprocess.call(cmd))
+PY

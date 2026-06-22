@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+mapfile -t sink_lines < <(wpctl status | sed -n '/Sinks:/,/Sources:/p' | grep '\[vol:' | sed 's/^[^0-9\*]*//')
+
+ids=()
+names=()
+cur_idx=-1
+
+for i in "${!sink_lines[@]}"; do
+  line="${sink_lines[$i]}"
+  if [[ "$line" =~ ^\*\ *([0-9]+)\.\ (.*)\ \[vol:\ .* ]]; then
+    ids+=("${BASH_REMATCH[1]}")
+    names+=("${BASH_REMATCH[2]}")
+    cur_idx=$i
+  elif [[ "$line" =~ ^([0-9]+)\.\ (.*)\ \[vol:\ .* ]]; then
+    ids+=("${BASH_REMATCH[1]}")
+    names+=("${BASH_REMATCH[2]}")
+  fi
+done
+
+if [[ ${#ids[@]} -eq 0 ]]; then
+  echo "no sinks parsed. paste: wpctl status | sed -n '/Sinks:/,/Sources:/p'" >&2
+  exit 1
+fi
+
+if [[ $cur_idx -lt 0 ]]; then
+  cur_idx=0
+fi
+
+next_idx=$(( (cur_idx + 1) % ${#ids[@]} ))
+next_id="${ids[$next_idx]}"
+next_name="${names[$next_idx]}"
+
+wpctl set-default "$next_id"
+
+if command -v notify-send >/dev/null 2>&1; then
+  notify-send "audio output" "$next_name"
+else
+  echo "audio output -> $next_name"
+fi

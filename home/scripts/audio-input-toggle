@@ -1,0 +1,79 @@
+#!/usr/bin/env python3
+import json
+import shutil
+import subprocess
+import sys
+
+
+def run(cmd, check=True):
+    return subprocess.run(cmd, check=check, text=True, capture_output=True)
+
+
+def get_default_source():
+    return run(["pactl", "get-default-source"]).stdout.strip()
+
+
+def list_sources():
+    raw = run(["pactl", "--format=json", "list", "sources"]).stdout
+    sources = json.loads(raw)
+    items = []
+    for src in sorted(sources, key=lambda s: s.get("index", 0)):
+        name = src.get("name") or ""
+        if not name or name.endswith(".monitor"):
+            continue
+        ports = src.get("ports") or []
+        usable = not (ports and all((p.get("availability") == "not available") for p in ports))
+        items.append({
+            "name": name,
+            "description": src.get("description") or name,
+            "usable": usable,
+        })
+    return items
+
+
+def list_source_output_ids():
+    raw = run(["pactl", "list", "short", "source-outputs"]).stdout.strip()
+    if not raw:
+        return []
+    return [line.split()[0] for line in raw.splitlines() if line.split()]
+
+
+def notify(title, body):
+    if shutil.which("notify-send"):
+        subprocess.run(["notify-send", title, body], check=False)
+    else:
+        print(f"{title} -> {body}")
+
+
+def main():
+    sources = list_sources()
+    usable = [src for src in sources if src["usable"]]
+
+    if not usable:
+        unavailable = ", ".join(src["description"] for src in sources) or "none"
+        print(f"no usable input sources. seen: {unavailable}", file=sys.stderr)
+        return 1
+
+    current = get_default_source()
+    names = [src["name"] for src in usable]
+    start_idx = names.index(current) if current in names else -1
+
+    if len(usable) == 1 and start_idx == 0:
+        notify("audio input", f"only available: {usable[0]['description']}")
+        return 0
+
+    for offset in range(1, len(usable) + 1):
+        candidate = usable[(start_idx + offset) % len(usable)]
+        run(["pactl", "set-default-source", candidate["name"]])
+        for source_output_id in list_source_output_ids():
+            subprocess.run(["pactl", "move-source-output", source_output_id, candidate["name"]], check=False)
+        if get_default_source() == candidate["name"]:
+            notify("audio input", candidate["description"])
+            return 0
+
+    print("failed to switch input", file=sys.stderr)
+    return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -7,6 +7,7 @@
     ../../modules/bluetooth.nix
     ../../modules/desktop.nix
     ../../modules/herdr.nix
+    ../../modules/keyboard.nix
     ../../modules/networking.nix
     ../../modules/nix.nix
     ../../modules/packages.nix

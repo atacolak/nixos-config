@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat >&2 <<'USAGE'
+Usage: task-terminal [session_name]
+Launch a terminal already attached to tmux session_name (default: main).
+USAGE
+}
+
+if [ "$#" -gt 1 ]; then
+  usage
+  exit 1
+fi
+
+session="${1:-main}"
+launcher="${TASK_TERMINAL_LAUNCHER:-kitty-shade}"
+
+if ! command -v "$launcher" >/dev/null 2>&1; then
+  launcher="kitty"
+fi
+
+exec "$launcher" -e tmux new-session -A -s "$session"

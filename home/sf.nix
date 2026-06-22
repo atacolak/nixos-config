@@ -29,6 +29,12 @@ let
     #!${pkgs.python3}/bin/python3
     ${builtins.readFile ./scripts/audio-input-toggle}
   '';
+
+  touchpadToggle = pkgs.writeShellApplication {
+    name = "touchpad-toggle";
+    runtimeInputs = with pkgs; [ hyprland libnotify ];
+    text = builtins.readFile ./scripts/touchpad-toggle;
+  };
 in
 {
   home.username = "sf";
@@ -79,6 +85,7 @@ in
     audioToggle
     audioInputToggle
     hyprCycleOrRun
+    touchpadToggle
   ];
 
   programs.bash.enable = true;

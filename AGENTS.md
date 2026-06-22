@@ -3,22 +3,31 @@
 this repo is the declarative source of truth for the laptop named `sfnix`.
 edit nix files here; do not hand-edit generated files in `/etc`, `/run/current-system`, or `/nix/store`.
 
-## working loop
+this file is the entrypoint for agents. read it first, then read the relevant runbook under `docs/runbooks/` before changing anything nontrivial.
 
-1. inspect before editing:
-   - `git status --short`
-   - read the relevant module, not just the file you think is involved
-2. make the smallest coherent change.
-3. evaluate:
-   - `nix eval --raw .#nixosConfigurations.laptop.config.system.build.toplevel`
-4. switch only after eval passes:
-   - `sudo nixos-rebuild switch --flake .#laptop`
-5. verify the runtime behavior with real commands.
-6. show `git diff`-level summary in your final response.
+## topology / entrypoints
 
-never claim a nixos change worked just because the file was edited. a successful rebuild and runtime check are the evidence.
+start here:
 
-## file map
+- `README.md`
+  - human-facing why-this-exists plaque. short by design.
+
+- `AGENTS.md`
+  - agent contract, repo topology, invariants, and traps.
+
+- `docs/known-constraints.md`
+  - facts that should not be rediscovered or casually "cleaned up".
+
+- `docs/verification.md`
+  - command matrix for proving specific classes of changes.
+
+- `docs/rollback.md`
+  - recovery commands when a switch breaks something.
+
+- `docs/runbooks/*.md`
+  - recipes for common edits. use these to make minimal changes without archaeology.
+
+config entrypoints:
 
 - `flake.nix`
   - pins inputs and wires the laptop system together.
@@ -26,7 +35,7 @@ never claim a nixos change worked just because the file was edited. a successful
 
 - `hosts/laptop/configuration.nix`
   - host identity and composition.
-  - this file should answer: “what is this machine?”
+  - this file should answer: "what is this machine?"
   - keep hardware scan import, hostname, locale/timezone, bootloader, user account, and imported modules here.
 
 - `hosts/laptop/hardware-configuration.nix`
@@ -41,9 +50,46 @@ never claim a nixos change worked just because the file was edited. a successful
   - user-level configuration for `sf` via home manager.
   - put shell aliases, ssh client config, user packages, xdg config files, and per-user env vars here.
 
+- `home/files/`
+  - declarative user config files linked into `~/.config` by home manager.
+  - hyprland, kitty, waybar, mako, fuzzel, hyprpaper, hyprlock, and hypridle live here.
+
+- `home/scripts/`
+  - helper scripts wrapped from `home/sf.nix` with `pkgs.writeShellApplication` or similar.
+  - scripts are not available to the user until wrapped and added to `home.packages`.
+
 - `pkgs/*.nix`
   - local package definitions.
   - package files should build artifacts, not configure the system.
+
+## completion contract
+
+a change is not complete until the appropriate proof exists.
+
+for nix or home-manager changes:
+
+1. inspect first:
+   - `git status --short`
+   - read the relevant module/runbook, not just the file you think is involved
+2. make the smallest coherent change.
+3. if adding files that nix imports or reads, run `git add` before eval.
+   - nix flakes cannot see untracked files. this is not optional.
+4. evaluate:
+   - `nix eval --raw .#nixosConfigurations.laptop.config.system.build.toplevel`
+5. switch only after eval passes, unless the user explicitly says not to:
+   - `sudo nixos-rebuild switch --flake .#laptop`
+6. verify runtime behavior with commands from `docs/verification.md`.
+7. commit if the user asked for a commit.
+8. summarize the git diff-level change and the verification performed.
+
+for docs-only changes:
+
+1. inspect `git status --short`.
+2. edit the docs.
+3. verify links/paths by reading the touched docs.
+4. commit if the user asked for a commit.
+
+never claim a nixos change worked just because the file was edited. a successful rebuild and runtime check are the evidence.
 
 ## ownership rules
 
@@ -68,7 +114,26 @@ put settings where they belong:
 - local packages:
   - custom derivations such as `pkgs/herdr.nix`
 
-if unsure, ask: “does this configure the machine, the user, or a build artifact?”
+if unsure, ask: "does this configure the machine, the user, or a build artifact?"
+
+## runbook map
+
+use these before editing common areas:
+
+- `docs/runbooks/rebuild.md`
+  - eval/switch/verify loop and flake gotchas.
+
+- `docs/runbooks/add-package.md`
+  - where to add system packages, user packages, or local derivations.
+
+- `docs/runbooks/home-manager-file.md`
+  - how to add managed files under `~/.config` or user scripts.
+
+- `docs/runbooks/hyprland-keybind.md`
+  - how to alter hyprland binds or add helper commands.
+
+- `docs/runbooks/bluetooth.md`
+  - how to touch bluetooth without breaking the airpods/dongle workaround.
 
 ## bluetooth warning
 
@@ -87,13 +152,11 @@ and leaves the usb dongle controller available:
 00:1A:7D:DA:71:13
 ```
 
-do not remove this unless you are intentionally retesting bluetooth hardware. if changing it, verify with:
+do not remove this unless you are intentionally retesting bluetooth hardware. if changing it, read:
 
-```bash
-bluetoothctl list
-hciconfig -a
-wpctl status
-journalctl -b -u bluetooth --since '5 min ago'
+```text
+docs/runbooks/bluetooth.md
+docs/known-constraints.md
 ```
 
 ## herdr
@@ -134,6 +197,15 @@ bad module names:
 - `fixes.nix`
 
 if a module cannot be described in one plain sentence, it is probably fake structure.
+
+## do not
+
+- do not edit `/etc/xdg/herdr/config.toml`; edit `home/sf.nix`.
+- do not manually replace `~/.config/hypr/hyprland.conf`; home-manager owns it.
+- do not delete `modules/bluetooth.nix` because the usb dongle workaround looks temporary.
+- do not put passwords, api keys, private ssh keys, tokens, or sudo passwords into nix files.
+- do not add untracked files and then run nix eval expecting flakes to see them.
+- do not claim a graphical setting works from an ssh tty without checking the actual runtime state where possible.
 
 ## secrets
 

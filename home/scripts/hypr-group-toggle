@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Toggle between a Hyprland group/deck and visible panes.
+# If active window is grouped: disband the whole group, making panes visible.
+# If active window is not grouped: stack it with the nearest neighbour.
+#
+# This is not i3's tree container model. Hyprland groups are a deck primitive,
+# so the re-stack side uses the nearest adjacent window rather than restoring an
+# arbitrary old container tree.
+
+active_json=$(hyprctl activewindow -j 2>/dev/null || true)
+if [[ -z "$active_json" || "$active_json" == "null" ]]; then
+  exit 0
+fi
+
+group_count=$(jq '(.grouped // []) | length' <<<"$active_json")
+
+if (( group_count > 0 )); then
+  hyprctl dispatch togglegroup
+  exit 0
+fi
+
+# Try to group with the nearest directional neighbour. Hyprland only exposes
+# direction-based group construction here, not “group these exact addresses”.
+for dir in r l d u; do
+  hyprctl -q dispatch moveintoorcreategroup "$dir" >/dev/null 2>&1 || true
+  now_json=$(hyprctl activewindow -j 2>/dev/null || true)
+  if [[ -n "$now_json" && $(jq '(.grouped // []) | length' <<<"$now_json") -gt 0 ]]; then
+    exit 0
+  fi
+done
+
+# No neighbour found; create a singleton group so future spawned windows can
+# join it via Hyprland's group:auto_group behavior.
+hyprctl dispatch togglegroup

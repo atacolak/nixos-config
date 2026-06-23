@@ -35,6 +35,24 @@ let
     runtimeInputs = with pkgs; [ hyprland libnotify ];
     text = builtins.readFile ./scripts/touchpad-toggle;
   };
+
+  hyprGroupToggle = pkgs.writeShellApplication {
+    name = "hypr-group-toggle";
+    runtimeInputs = with pkgs; [ hyprland jq ];
+    text = builtins.readFile ./scripts/hypr-group-toggle;
+  };
+
+  hyprGroupStart = pkgs.writeShellApplication {
+    name = "hypr-group-start";
+    runtimeInputs = with pkgs; [ hyprland jq ];
+    text = builtins.readFile ./scripts/hypr-group-start;
+  };
+
+  hyprKillActive = pkgs.writeShellApplication {
+    name = "hypr-kill-active";
+    runtimeInputs = with pkgs; [ hyprland jq coreutils ];
+    text = builtins.readFile ./scripts/hypr-kill-active;
+  };
 in
 {
   home.username = "sf";
@@ -86,6 +104,9 @@ in
     audioInputToggle
     hyprCycleOrRun
     touchpadToggle
+    hyprGroupToggle
+    hyprGroupStart
+    hyprKillActive
   ];
 
   programs.bash.enable = true;

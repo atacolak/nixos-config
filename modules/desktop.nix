@@ -5,7 +5,7 @@ let
 [Desktop Entry]
 Name=Sway (i3 port)
 Comment=i3-style Sway session managed by /home/sf/nixos-config
-Exec=${pkgs.sway}/bin/sway
+Exec=${pkgs.coreutils}/bin/env XDG_CURRENT_DESKTOP=sway XDG_SESSION_DESKTOP=sway NIXOS_OZONE_WL=1 ${pkgs.sway}/bin/sway
 TryExec=${pkgs.sway}/bin/sway
 Type=Application
 DesktopNames=sway;wlroots
@@ -40,6 +40,24 @@ in
   };
 
   security.pam.services.swaylock = { };
+
+  programs.thunar = {
+    enable = true;
+    plugins = with pkgs; [
+      thunar-archive-plugin
+      thunar-volman
+    ];
+  };
+
+  services.gvfs.enable = true;
+  services.tumbler.enable = true;
+
+  xdg.portal = {
+    enable = true;
+    wlr.enable = true;
+    extraPortals = with pkgs; [ xdg-desktop-portal-gtk ];
+    config.common.default = [ "wlr" "gtk" ];
+  };
 
   # The upstream sway.desktop says `Exec=sway`. GDM on this host runs with a
   # narrow PATH, so expose a second explicit session with an absolute Exec.

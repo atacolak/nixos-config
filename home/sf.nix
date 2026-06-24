@@ -26,6 +26,8 @@ let
 
   modernMinimalUiSounds = pkgs.callPackage ../pkgs/modern-minimal-ui-sounds.nix { };
 
+  handy = pkgs.callPackage ../pkgs/handy.nix { };
+
   swayKillClean = pkgs.writeScriptBin "sway-kill-clean" ''
     #!${pkgs.python3}/bin/python3
     ${builtins.readFile ./scripts/sway-kill-clean}
@@ -128,14 +130,18 @@ in
     kitty
     fuzzel
     swaynotificationcenter
+    xdg-utils
     i3status-rust
     swayidle
     swaylock
     sway-contrib.grimshot
     bibata-cursors
+    papirus-icon-theme
+    gnome-themes-extra
     modernMinimalUiSounds
     libcanberra-gtk3
     sound-theme-freedesktop
+    handy
     brightnessctl
     playerctl
     networkmanagerapplet
@@ -145,7 +151,6 @@ in
     wl-clipboard
     grim
     slurp
-    nautilus
     thunar
     blueman
     vscode
@@ -227,6 +232,10 @@ in
     NIXOS_OZONE_WL = "1";
     XCURSOR_THEME = "Bibata-Modern-Ice";
     XCURSOR_SIZE = "24";
+    BROWSER = "firefox";
+    XDG_CURRENT_DESKTOP = "sway";
+    XDG_SESSION_DESKTOP = "sway";
+    GTK_THEME = "Adwaita:dark";
   };
 
   programs.ssh = {
@@ -255,6 +264,29 @@ in
         ServerAliveInterval = 30;
         ServerAliveCountMax = 3;
       };
+    };
+  };
+
+  xdg.mimeApps = {
+    enable = true;
+    defaultApplications = {
+      "inode/directory" = [ "thunar.desktop" ];
+
+      "x-scheme-handler/http" = [ "firefox.desktop" ];
+      "x-scheme-handler/https" = [ "firefox.desktop" ];
+      "x-scheme-handler/about" = [ "firefox.desktop" ];
+      "x-scheme-handler/unknown" = [ "firefox.desktop" ];
+      "text/html" = [ "firefox.desktop" ];
+      "text/xml" = [ "firefox.desktop" ];
+      "application/xhtml+xml" = [ "firefox.desktop" ];
+      "application/xml" = [ "firefox.desktop" ];
+      "application/pdf" = [ "firefox.desktop" ];
+    };
+    associations.added = {
+      "inode/directory" = [ "thunar.desktop" ];
+      "x-scheme-handler/http" = [ "firefox.desktop" ];
+      "x-scheme-handler/https" = [ "firefox.desktop" ];
+      "text/html" = [ "firefox.desktop" ];
     };
   };
 
@@ -291,6 +323,9 @@ in
 
   xdg.configFile."gtk-3.0/settings.ini".text = ''
     [Settings]
+    gtk-theme-name=Adwaita-dark
+    gtk-application-prefer-dark-theme=1
+    gtk-icon-theme-name=Papirus-Dark
     gtk-cursor-theme-name=Bibata-Modern-Ice
     gtk-cursor-theme-size=24
     gtk-sound-theme-name=modern-minimal-ui-sounds
@@ -300,6 +335,9 @@ in
 
   xdg.configFile."gtk-4.0/settings.ini".text = ''
     [Settings]
+    gtk-theme-name=Adwaita-dark
+    gtk-application-prefer-dark-theme=1
+    gtk-icon-theme-name=Papirus-Dark
     gtk-cursor-theme-name=Bibata-Modern-Ice
     gtk-cursor-theme-size=24
     gtk-sound-theme-name=modern-minimal-ui-sounds

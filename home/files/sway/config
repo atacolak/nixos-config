@@ -1,0 +1,271 @@
+# ported from the ubuntu i3 config: same mod/modes/layout/bar model, wayland substrate.
+# caps emits mod4 via kmonad; fast double-tap caps still toggles caps lock.
+
+set $mod Mod4
+font pango:Fira Code 10
+
+# basics
+floating_modifier $mod normal
+focus_follows_mouse yes
+mouse_warping none
+
+# wallpaper equivalent of the old feh startup
+output * bg /home/sf/.config/sway/wallpaper.jpg fill
+
+default_border pixel 1
+default_floating_border pixel 1
+
+for_window [class="^Code$"] border pixel 1
+for_window [app_id="^Code$"] border pixel 1
+
+# auto-float external viewers opened from file managers / xdg-open
+for_window [class="^(Zathura|Nsxiv|nsxiv|feh|mpv|imv|org\.gnome\.Evince|Evince|Eog)$"] floating enable
+for_window [app_id="^(org\.pwmt\.zathura|nsxiv|feh|mpv|imv|org\.gnome\.Evince|org\.gnome\.eog)$"] floating enable
+
+hide_edge_borders smart
+focus_on_window_activation smart
+
+gaps inner 3
+gaps outer 0
+
+# default split on ultrawide
+default_orientation horizontal
+
+# --- media keys (pipewire) ---
+bindsym XF86AudioRaiseVolume exec --no-startup-id wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ 5%+
+bindsym XF86AudioLowerVolume exec --no-startup-id wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-
+bindsym XF86AudioMute        exec --no-startup-id wpctl set-mute   @DEFAULT_AUDIO_SINK@ toggle
+bindsym XF86AudioMicMute     exec --no-startup-id wpctl set-mute   @DEFAULT_AUDIO_SOURCE@ toggle
+
+# laptop fn-row extras that i3 desktop did not need but this laptop does.
+bindsym XF86MonBrightnessDown exec --no-startup-id brightnessctl set 5%-
+bindsym XF86MonBrightnessUp   exec --no-startup-id brightnessctl set +5%
+bindsym XF86TouchpadToggle    input type:touchpad events toggle enabled disabled
+
+# --- media keys (mpris) ---
+bindsym XF86AudioPrev exec --no-startup-id playerctl previous
+bindsym XF86AudioPlay exec --no-startup-id playerctl play-pause
+bindsym XF86AudioNext exec --no-startup-id playerctl next
+
+exec --no-startup-id dunst
+exec_always --no-startup-id sh -lc 'pkill -x swayidle; swayidle -w timeout 600 "i3-lock"'
+
+# repo-managed helpers, installed by home-manager
+set $term kitty-shade
+set $wmutil wmutil
+set $firefox_session firefox-session
+set $audio_toggle audio-toggle
+set $audio_input_toggle audio-input-toggle
+set $i3_save_default_workspaces i3-save-default-workspaces
+set $i3_restore_default_workspaces i3-restore-default-workspaces
+set $i3_tree_path i3-tree-path
+set $i3_spawn_here i3-spawn-here
+set $i3_lock_cmd i3-lock
+set $i3_cycle_tab_sibling i3-cycle-tab-sibling
+set $i3_resurrect_save_ws i3-resurrect-save-workspace-confirm
+set $i3_resurrect_restore_ws i3-resurrect-restore-workspace-confirm
+
+# terminal / launcher
+bindsym $mod+Return exec --no-startup-id $term
+bindsym $mod+shift+z exec --no-startup-id task-terminal main
+bindsym $mod+space exec --no-startup-id rofi -show drun
+bindsym $mod+q kill
+bindsym $mod+Shift+q exec --no-startup-id $wmutil kill-class
+
+# app binds
+bindsym $mod+f exec --no-startup-id $wmutil cycle-or-run --class firefox --scope current --launch $firefox_session --new-window
+bindsym $mod+c exec --no-startup-id $wmutil cycle-or-run --class code   --scope current --launch code
+bindsym $mod+t exec --no-startup-id $wmutil cycle-or-run --class kitty  --scope current --launch $term
+bindsym $mod+d exec --no-startup-id $wmutil cycle-or-run --class thunar --scope current --launch thunar
+
+bindsym $mod+Tab exec --no-startup-id $wmutil cycle-focused --scope current
+bindsym $mod+Shift+Tab exec --no-startup-id $wmutil cycle-focused --scope current --reverse
+bindsym Mod1+Tab exec --no-startup-id $i3_cycle_tab_sibling
+bindsym Mod1+Shift+Tab exec --no-startup-id $i3_cycle_tab_sibling --reverse
+
+bindsym $mod+F5 exec --no-startup-id $audio_input_toggle
+bindsym $mod+F6 exec --no-startup-id $audio_toggle
+bindsym $mod+F10 exec --no-startup-id pavucontrol
+# >>> i3-resurrect-bindings:start >>>
+bindsym $mod+Shift+F9 exec --no-startup-id $i3_save_default_workspaces
+bindsym $mod+Shift+F10 exec --no-startup-id $i3_restore_default_workspaces
+bindsym $mod+control+1 exec --no-startup-id $i3_resurrect_restore_ws 1
+bindsym $mod+control+2 exec --no-startup-id $i3_resurrect_restore_ws 2
+bindsym $mod+control+3 exec --no-startup-id $i3_resurrect_restore_ws 3
+bindsym $mod+control+4 exec --no-startup-id $i3_resurrect_restore_ws 4
+bindsym $mod+control+5 exec --no-startup-id $i3_resurrect_restore_ws 5
+bindsym $mod+control+6 exec --no-startup-id $i3_resurrect_restore_ws 6
+bindsym $mod+control+7 exec --no-startup-id $i3_resurrect_restore_ws 7
+bindsym $mod+control+8 exec --no-startup-id $i3_resurrect_restore_ws 8
+bindsym $mod+control+9 exec --no-startup-id $i3_resurrect_restore_ws 9
+bindsym $mod+control+0 exec --no-startup-id $i3_resurrect_restore_ws 0
+bindsym $mod+control+shift+1 exec --no-startup-id $i3_resurrect_save_ws 1
+bindsym $mod+control+shift+2 exec --no-startup-id $i3_resurrect_save_ws 2
+bindsym $mod+control+shift+3 exec --no-startup-id $i3_resurrect_save_ws 3
+bindsym $mod+control+shift+4 exec --no-startup-id $i3_resurrect_save_ws 4
+bindsym $mod+control+shift+5 exec --no-startup-id $i3_resurrect_save_ws 5
+bindsym $mod+control+shift+6 exec --no-startup-id $i3_resurrect_save_ws 6
+bindsym $mod+control+shift+7 exec --no-startup-id $i3_resurrect_save_ws 7
+bindsym $mod+control+shift+8 exec --no-startup-id $i3_resurrect_save_ws 8
+bindsym $mod+control+shift+9 exec --no-startup-id $i3_resurrect_save_ws 9
+bindsym $mod+control+shift+0 exec --no-startup-id $i3_resurrect_save_ws 0
+# <<< i3-resurrect-bindings:end <<<
+# >>> i3-tree-inspector-bind:start >>>
+# Tree inspector notes:
+# - "i3:" titles are synthetic internal container names.
+# - h/v/t/s are split-h, split-v, tabbed, and stacked container markers.
+# - read the string conceptually inside-out (leaf -> root), even though output is ws -> ... -> leaf.
+bindsym $mod+F12 exec --no-startup-id $i3_tree_path
+# <<< i3-tree-inspector-bind:end <<<
+# force new local windows in the current workspace
+bindsym $mod+Shift+f exec --no-startup-id $i3_spawn_here firefox
+bindsym $mod+Shift+c exec --no-startup-id $i3_spawn_here code
+bindsym $mod+Shift+t exec --no-startup-id $i3_spawn_here terminal
+bindsym $mod+Shift+d exec --no-startup-id $i3_spawn_here thunar
+
+# screenshots
+# Mod+Shift+S  → clipboard only (original)
+bindsym $mod+Shift+s exec --no-startup-id flameshot gui -c
+# Mod+Shift+Alt+S → save to ~/Pictures/Screenshots (original)
+bindsym $mod+Shift+Mod1+s exec --no-startup-id sh -lc 'flameshot gui -p "$HOME/Pictures/Screenshots"'
+
+# lock screen (Super+;)
+bindsym $mod+semicolon exec --no-startup-id $i3_lock_cmd
+
+# focus (vim)
+bindsym $mod+h focus left
+bindsym $mod+j focus down
+bindsym $mod+k focus up
+bindsym $mod+l focus right
+
+# move containers
+bindsym $mod+Shift+h move left
+bindsym $mod+Shift+j move down
+bindsym $mod+Shift+k move up
+bindsym $mod+Shift+l move right
+
+# layout
+bindsym $mod+g layout toggle split
+bindsym $mod+w layout tabbed
+bindsym $mod+e layout stacking
+bindsym $mod+s layout default
+
+# navigation (tree)
+# u/i are parent/child tree traversal.
+bindsym $mod+u focus parent
+bindsym $mod+i focus child
+
+# >>> i3-tree-mode:start >>>
+# tree mode: traversal plus explicit local sibling spawning
+bindsym $mod+y mode "tree"
+
+mode "tree" {
+    # navigation
+    bindsym h focus left
+    bindsym j focus down
+    bindsym k focus up
+    bindsym l focus right
+    bindsym u focus parent
+    bindsym i focus child
+
+    # container shaping
+    bindsym g layout toggle split
+    bindsym w layout tabbed
+    bindsym e layout stacking
+    bindsym s layout default
+    bindsym a floating toggle
+
+    # local sibling spawns (horizontal)
+    bindsym t split h; exec --no-startup-id $i3_spawn_here terminal; mode "default"
+    bindsym f split h; exec --no-startup-id $i3_spawn_here firefox; mode "default"
+    bindsym c split h; exec --no-startup-id $i3_spawn_here code; mode "default"
+    bindsym d split h; exec --no-startup-id $i3_spawn_here thunar; mode "default"
+
+    # local sibling spawns (vertical)
+    bindsym Shift+t split v; exec --no-startup-id $i3_spawn_here terminal; mode "default"
+    bindsym Shift+f split v; exec --no-startup-id $i3_spawn_here firefox; mode "default"
+    bindsym Shift+c split v; exec --no-startup-id $i3_spawn_here code; mode "default"
+    bindsym Shift+d split v; exec --no-startup-id $i3_spawn_here thunar; mode "default"
+
+    bindsym Escape mode "default"
+    bindsym Return mode "default"
+}
+# <<< i3-tree-mode:end <<<
+
+# floating toggle (replaces “always on top” cleanly)
+bindsym $mod+a floating toggle
+bindsym $mod+Shift+a focus mode_toggle
+
+# workspaces 1..9
+set $ws1 "1"
+set $ws2 "2"
+set $ws3 "3"
+set $ws4 "4"
+set $ws5 "5"
+set $ws6 "6"
+set $ws7 "7"
+set $ws8 "8"
+set $ws9 "9"
+
+bindsym $mod+1 workspace $ws1
+bindsym $mod+2 workspace $ws2
+bindsym $mod+3 workspace $ws3
+bindsym $mod+4 workspace $ws4
+bindsym $mod+5 workspace $ws5
+bindsym $mod+6 workspace $ws6
+bindsym $mod+7 workspace $ws7
+bindsym $mod+8 workspace $ws8
+bindsym $mod+9 workspace $ws9
+
+bindsym $mod+Shift+1 move container to workspace $ws1; workspace $ws1
+bindsym $mod+Shift+2 move container to workspace $ws2; workspace $ws2
+bindsym $mod+Shift+3 move container to workspace $ws3; workspace $ws3
+bindsym $mod+Shift+4 move container to workspace $ws4; workspace $ws4
+bindsym $mod+Shift+5 move container to workspace $ws5; workspace $ws5
+bindsym $mod+Shift+6 move container to workspace $ws6; workspace $ws6
+bindsym $mod+Shift+7 move container to workspace $ws7; workspace $ws7
+bindsym $mod+Shift+8 move container to workspace $ws8; workspace $ws8
+bindsym $mod+Shift+9 move container to workspace $ws9; workspace $ws9
+
+# ultrawide snapping
+bindsym $mod+Left  exec --no-startup-id $wmutil snap left-half
+bindsym $mod+Right exec --no-startup-id $wmutil snap right-half
+bindsym $mod+Ctrl+Left  exec --no-startup-id $wmutil snap left-third
+bindsym $mod+Ctrl+Right exec --no-startup-id $wmutil snap right-third
+bindsym $mod+Ctrl+Shift+Left  exec --no-startup-id $wmutil snap left-two-thirds
+bindsym $mod+Ctrl+Shift+Right exec --no-startup-id $wmutil snap right-two-thirds
+
+# sway-native reload/restart/logout equivalents
+bindsym $mod+Shift+r reload
+bindsym $mod+Shift+e exec --no-startup-id swaynag -t warning -m 'logout?' -b 'yes' 'swaymsg exit'
+
+# minimal bar: this is the i3bar behavior you wanted back.
+bar {
+  mode hide
+  hidden_state hide
+  modifier $mod
+  status_command i3status-rs /home/sf/.config/i3status-rust/config.toml
+}
+
+# resize mode
+set $resize_step 10 px
+set $resize_step_big 40 px
+
+bindsym $mod+r mode "resize"
+
+mode "resize" {
+  # shrink/grow width (left/right edges)
+  bindsym h resize shrink width  $resize_step
+  bindsym l resize grow   width  $resize_step
+  bindsym Shift+h resize shrink width  $resize_step_big
+  bindsym Shift+l resize grow   width  $resize_step_big
+
+  # shrink/grow height (up/down edges)
+  bindsym j resize grow   height $resize_step
+  bindsym k resize shrink height $resize_step
+  bindsym Shift+j resize grow   height $resize_step_big
+  bindsym Shift+k resize shrink height $resize_step_big
+
+  bindsym Escape mode "default"
+  bindsym Return mode "default"
+}

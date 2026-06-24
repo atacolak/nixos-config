@@ -1,0 +1,218 @@
+#!/usr/bin/env bash
+# shellcheck disable=SC2034,SC2088
+set -euo pipefail
+
+notify_user() {
+  local title="$1"
+  local body="$2"
+
+  if command -v notify-send >/dev/null 2>&1; then
+    if notify-send "$title" "$body" >/dev/null 2>&1; then
+      return
+    fi
+  fi
+
+  if command -v i3-nagbar >/dev/null 2>&1; then
+    i3-nagbar -t warning -m "${title}: ${body}" -b ok "true" >/dev/null 2>&1 &
+    return
+  fi
+
+  printf '%s: %s\n' "$title" "$body" >&2
+}
+
+workspace_from_arg() {
+  local raw="$1"
+  local ws_num
+
+  if [[ ! "$raw" =~ ^[0-9]+$ ]]; then
+    return 1
+  fi
+
+  if [[ "$raw" == "0" ]]; then
+    printf '10\n'
+    return 0
+  fi
+
+  ws_num=$((10#${raw}))
+  if ((ws_num < 1 || ws_num > 10)); then
+    return 1
+  fi
+
+  printf '%s\n' "$ws_num"
+}
+
+play_confirm_sound() {
+  if command -v canberra-gtk-play >/dev/null 2>&1; then
+    canberra-gtk-play -i dialog-warning >/dev/null 2>&1 || true
+    return 0
+  fi
+
+  if command -v paplay >/dev/null 2>&1; then
+    local ogg
+    for ogg in \
+      /usr/share/sounds/freedesktop/stereo/dialog-warning.oga \
+      /usr/share/sounds/freedesktop/stereo/bell.oga \
+      /usr/share/sounds/freedesktop/stereo/complete.oga; do
+      if [[ -f "$ogg" ]]; then
+        paplay "$ogg" >/dev/null 2>&1 || true
+        return 0
+      fi
+    done
+  fi
+
+  if command -v aplay >/dev/null 2>&1; then
+    local wav
+    for wav in \
+      /usr/share/sounds/alsa/Front_Center.wav \
+      /usr/share/sounds/sound-icons/prompt.wav; do
+      if [[ -f "$wav" ]]; then
+        aplay -q "$wav" >/dev/null 2>&1 || true
+        return 0
+      fi
+    done
+  fi
+
+  return 1
+}
+
+prune_vscode_programs() {
+  local target="$1"
+
+  python3 - "$target" <<'PY'
+import json
+import os
+import sys
+from pathlib import Path
+
+VSCODE_BASENAMES = {
+    "code",
+    "code-insiders",
+    "code-oss",
+    "codium",
+    "codium-insiders",
+    "vscodium",
+}
+
+
+def is_vscode_entry(entry):
+    if not isinstance(entry, dict):
+        return False
+    command = entry.get("command")
+    if not isinstance(command, list) or not command:
+        return False
+    first = command[0]
+    if not isinstance(first, str):
+        return False
+    launcher = os.path.basename(first).lower()
+    return launcher in VSCODE_BASENAMES
+
+
+target = Path(sys.argv[1]).expanduser()
+if not target.exists():
+    raise SystemExit(0)
+
+try:
+    payload = json.loads(target.read_text(encoding="utf-8"))
+except Exception as exc:
+    print(f"i3-resurrect-prune-vscode: failed to read {target}: {exc}", file=sys.stderr)
+    raise SystemExit(1)
+
+if not isinstance(payload, list):
+    print(f"i3-resurrect-prune-vscode: expected a JSON list in {target}", file=sys.stderr)
+    raise SystemExit(1)
+
+filtered = [entry for entry in payload if not is_vscode_entry(entry)]
+removed = len(payload) - len(filtered)
+if removed == 0:
+    raise SystemExit(0)
+
+target.write_text(json.dumps(filtered, indent=2) + "\n", encoding="utf-8")
+print(
+    f"i3-resurrect-prune-vscode: removed {removed} vscode entry(s) from {target}",
+    file=sys.stderr,
+)
+PY
+}
+
+run_save() {
+  local ws="$1"
+  local workspace_programs_file="${resurrect_dir}/workspace_${ws}_programs.json"
+
+  if ! i3-resurrect save -w "$ws" -n; then
+    notify_user "i3-resurrect" "save failed for workspace $ws"
+    return 1
+  fi
+
+  if ! "${prune_firefox}" "${workspace_programs_file}"; then
+    notify_user "i3-resurrect" "saved workspace $ws, but firefox prune failed"
+    return 1
+  fi
+
+  if ! prune_vscode_programs "${workspace_programs_file}"; then
+    notify_user "i3-resurrect" "saved workspace $ws, but vscode prune failed"
+    return 1
+  fi
+
+  notify_user "i3-resurrect" "saved workspace $ws"
+}
+
+ws="$(workspace_from_arg "${1:-}")" || {
+  notify_user "i3-resurrect" "invalid workspace: ${1:-<empty>}"
+  exit 1
+}
+
+if ! command -v i3-resurrect >/dev/null 2>&1; then
+  notify_user "i3-resurrect" "missing dependency: i3-resurrect"
+  exit 1
+fi
+
+prune_firefox="${I3_RESURRECT_PRUNE_FIREFOX_CMD:-i3-resurrect-prune-firefox-programs}"
+if ! command -v "${prune_firefox}" >/dev/null 2>&1 && [[ ! -x "${prune_firefox}" ]]; then
+  notify_user "i3-resurrect" "missing helper: ${prune_firefox}"
+  exit 1
+fi
+
+resurrect_dir="${I3_RESURRECT_DIR:-$HOME/.i3/i3-resurrect}"
+if [[ "${resurrect_dir}" == "~" ]]; then
+  resurrect_dir="${HOME}"
+fi
+
+timeout_s="${I3_RESURRECT_SAVE_CONFIRM_TIMEOUT:-4}"
+if [[ ! "$timeout_s" =~ ^[0-9]+$ ]] || ((timeout_s < 1)); then
+  timeout_s=4
+fi
+
+state_dir="${XDG_RUNTIME_DIR:-/tmp}"
+state_file="${state_dir}/i3-resurrect-save-confirm.${UID}.state"
+now="$(date +%s)"
+
+prior_ws=""
+prior_ts=""
+if [[ -f "$state_file" ]]; then
+  read -r prior_ws prior_ts <"$state_file" || true
+fi
+
+if [[ "$prior_ws" =~ ^[0-9]+$ ]] && [[ "$prior_ts" =~ ^[0-9]+$ ]]; then
+  age=$((now - prior_ts))
+  if ((age >= 0)) && ((age <= timeout_s)) && [[ "$prior_ws" == "$ws" ]]; then
+    rm -f "$state_file"
+    run_save "$ws"
+    exit $?
+  fi
+fi
+
+printf '%s %s\n' "$ws" "$now" >"$state_file"
+
+if [[ "$prior_ws" =~ ^[0-9]+$ ]] && [[ "$prior_ts" =~ ^[0-9]+$ ]]; then
+  age=$((now - prior_ts))
+  if ((age > timeout_s)) && [[ "$prior_ws" == "$ws" ]]; then
+    notify_user "i3-resurrect" "save confirmation expired for workspace ${ws}; press again to confirm"
+  elif [[ "$prior_ws" != "$ws" ]]; then
+    notify_user "i3-resurrect" "save target switched to workspace ${ws}; press again to confirm"
+  fi
+fi
+
+notify_user "i3-resurrect" "saving workspace ${ws}, press again to confirm"
+if ! play_confirm_sound; then
+  notify_user "i3-resurrect" "sound unavailable: install canberra-gtk-play, paplay, or aplay"
+fi

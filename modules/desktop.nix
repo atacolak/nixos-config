@@ -1,5 +1,18 @@
-{ ... }:
+{ pkgs, ... }:
 
+let
+  swayI3Session = (pkgs.writeTextDir "share/wayland-sessions/sway-i3-port.desktop" ''
+[Desktop Entry]
+Name=Sway (i3 port)
+Comment=i3-style Sway session managed by /home/sf/nixos-config
+Exec=${pkgs.sway}/bin/sway
+TryExec=${pkgs.sway}/bin/sway
+Type=Application
+DesktopNames=sway;wlroots
+  '').overrideAttrs (_: {
+    providedSessions = [ "sway-i3-port" ];
+  });
+in
 {
   services.xserver = {
     enable = true;
@@ -17,6 +30,25 @@
     enable = true;
     withUWSM = true;
   };
+
+  # Alternate session for when the desired model is i3-on-wayland rather than
+  # Hyprland approximating i3. GDM should expose both Hyprland and Sway.
+  programs.sway = {
+    enable = true;
+    xwayland.enable = true;
+    extraPackages = with pkgs; [
+      swayidle
+      swaylock
+      sway-contrib.grimshot
+      xwayland-satellite
+    ];
+  };
+
+  security.pam.services.swaylock = { };
+
+  # The upstream sway.desktop says `Exec=sway`. GDM on this host runs with a
+  # narrow PATH, so expose a second explicit session with an absolute Exec.
+  services.displayManager.sessionPackages = [ swayI3Session ];
 
   environment.sessionVariables.NIXOS_OZONE_WL = "1";
 

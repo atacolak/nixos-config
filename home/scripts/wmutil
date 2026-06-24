@@ -1,0 +1,231 @@
+#!/usr/bin/env python3
+import argparse
+import json
+import os
+import subprocess
+import sys
+from typing import Any
+
+
+def run(cmd, *, capture=False, check=False):
+    return subprocess.run(cmd, text=True, stdout=subprocess.PIPE if capture else subprocess.DEVNULL, stderr=subprocess.PIPE if capture else subprocess.DEVNULL, check=check)
+
+
+def sway_json(kind: str) -> Any:
+    proc = run(["swaymsg", "-t", kind], capture=True)
+    if proc.returncode != 0:
+        raise RuntimeError(proc.stderr.strip() or f"swaymsg -t {kind} failed")
+    return json.loads(proc.stdout)
+
+
+def sway(command: str) -> bool:
+    proc = run(["swaymsg", command], capture=True)
+    if proc.returncode != 0:
+        return False
+    try:
+        payload = json.loads(proc.stdout)
+        if isinstance(payload, list):
+            return all(item.get("success", True) for item in payload if isinstance(item, dict))
+    except Exception:
+        pass
+    return True
+
+
+def launch_detached(argv: list[str]) -> None:
+    subprocess.Popen(argv, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+
+
+def walk(node: dict[str, Any], workspace=None):
+    if node.get("type") == "workspace":
+        workspace = node.get("name")
+    props = node.get("window_properties") or {}
+    is_window = node.get("window") is not None or bool(node.get("app_id")) or bool(props)
+    if is_window:
+        yield {
+            "id": node.get("id"),
+            "workspace": workspace,
+            "focused": bool(node.get("focused")),
+            "app_id": (node.get("app_id") or "").lower(),
+            "class": (props.get("class") or "").lower(),
+            "instance": (props.get("instance") or "").lower(),
+            "name": (node.get("name") or "").lower(),
+            "rect": node.get("rect") or {},
+        }
+    for child in node.get("nodes", []):
+        yield from walk(child, workspace)
+    for child in node.get("floating_nodes", []):
+        yield from walk(child, workspace)
+
+
+def windows():
+    return list(walk(sway_json("get_tree")))
+
+
+def focused_workspace() -> str | None:
+    for ws in sway_json("get_workspaces"):
+        if ws.get("focused"):
+            return ws.get("name")
+    return None
+
+
+def focused_workspace_rect() -> dict[str, int] | None:
+    for ws in sway_json("get_workspaces"):
+        if ws.get("focused"):
+            return ws.get("rect") or None
+    return None
+
+
+def focused_window():
+    for win in windows():
+        if win["focused"]:
+            return win
+    return None
+
+
+def matches(win, term: str) -> bool:
+    t = term.lower()
+    return any(t in (win.get(k) or "") for k in ("class", "instance", "app_id", "name"))
+
+
+def focus_con(con_id: int) -> None:
+    sway(f"[con_id={con_id}] focus")
+
+
+def ordered_candidates(term: str | None, scope: str):
+    ws = focused_workspace() if scope == "current" else None
+    out = []
+    for win in windows():
+        if scope == "current" and win.get("workspace") != ws:
+            continue
+        if term is not None and not matches(win, term):
+            continue
+        if win.get("id") is not None:
+            out.append(win)
+    return out
+
+
+def cycle_candidates(candidates, reverse: bool) -> bool:
+    if not candidates:
+        return False
+    active_idx = next((i for i, w in enumerate(candidates) if w.get("focused")), -1)
+    if active_idx < 0:
+        target = candidates[-1 if reverse else 0]
+    else:
+        step = -1 if reverse else 1
+        target = candidates[(active_idx + step) % len(candidates)]
+    focus_con(target["id"])
+    return True
+
+
+def cmd_cycle_or_run(args):
+    if not args.launch:
+        raise SystemExit("wmutil: cycle-or-run needs --launch")
+    candidates = ordered_candidates(args.class_match, args.scope)
+    if candidates:
+        cycle_candidates(candidates, args.reverse)
+    else:
+        launch_detached(args.launch)
+
+
+def cmd_cycle_focused(args):
+    cycle_candidates(ordered_candidates(None, args.scope), args.reverse)
+
+
+def cmd_snap(args):
+    rect = focused_workspace_rect()
+    active = focused_window()
+    if not rect or not active:
+        return 1
+    x, y, w, h = int(rect["x"]), int(rect["y"]), int(rect["width"]), int(rect["height"])
+    tx, ty, tw, th = x, y, w, h
+    if args.mode == "left-half":
+        tw = w // 2
+    elif args.mode == "right-half":
+        tw = w // 2; tx = x + w - tw
+    elif args.mode == "left-third":
+        tw = w // 3
+    elif args.mode == "right-third":
+        tw = w // 3; tx = x + w - tw
+    elif args.mode == "left-two-thirds":
+        tw = (w * 2) // 3
+    elif args.mode == "right-two-thirds":
+        tw = (w * 2) // 3; tx = x + w - tw
+    else:
+        return 2
+    tw, th = max(tw, 100), max(th, 100)
+    sway("floating enable")
+    sway(f"move position {tx} px {ty} px")
+    sway(f"resize set {tw} px {th} px")
+    return 0
+
+
+def cmd_kill_class(_args):
+    active = focused_window()
+    if not active:
+        return 0
+    token = active.get("class") or active.get("app_id") or active.get("instance")
+    if not token:
+        return 0
+    for win in windows():
+        if token in {win.get("class"), win.get("app_id"), win.get("instance")} and win.get("id"):
+            sway(f"[con_id={win['id']}] kill")
+    return 0
+
+
+def parser():
+    p = argparse.ArgumentParser(prog="wmutil")
+    sub = p.add_subparsers(dest="cmd", required=True)
+
+    c = sub.add_parser("cycle-or-run")
+    c.add_argument("--class", dest="class_match", required=True)
+    c.add_argument("--scope", choices=["current", "any"], default="current")
+    c.add_argument("--reverse", action="store_true")
+    c.add_argument("--launch", nargs=argparse.REMAINDER, required=True)
+
+    c = sub.add_parser("focus-or-run")
+    c.add_argument("--class", dest="class_match", required=True)
+    c.add_argument("--scope", choices=["current", "any"], default="current")
+    c.add_argument("--launch", nargs=argparse.REMAINDER, required=True)
+
+    c = sub.add_parser("cycle-focused")
+    c.add_argument("--scope", choices=["current", "any"], default="current")
+    c.add_argument("--reverse", action="store_true")
+
+    c = sub.add_parser("snap")
+    c.add_argument("mode")
+
+    sub.add_parser("kill-class")
+    sub.add_parser("shot-area")
+    return p
+
+
+def main():
+    args = parser().parse_args()
+    if args.cmd == "cycle-or-run":
+        return cmd_cycle_or_run(args) or 0
+    if args.cmd == "focus-or-run":
+        candidates = ordered_candidates(args.class_match, args.scope)
+        if candidates:
+            focus_con(candidates[0]["id"])
+        else:
+            launch_detached(args.launch)
+        return 0
+    if args.cmd == "cycle-focused":
+        return cmd_cycle_focused(args) or 0
+    if args.cmd == "snap":
+        return cmd_snap(args)
+    if args.cmd == "kill-class":
+        return cmd_kill_class(args)
+    if args.cmd == "shot-area":
+        out = os.path.expanduser("~/Pictures/Screenshots/shot.png")
+        os.makedirs(os.path.dirname(out), exist_ok=True)
+        return subprocess.call(["grimshot", "save", "area", out])
+    return 2
+
+
+if __name__ == "__main__":
+    try:
+        raise SystemExit(main())
+    except RuntimeError as exc:
+        print(f"wmutil: {exc}", file=sys.stderr)
+        raise SystemExit(1)

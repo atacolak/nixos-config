@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# shellcheck disable=SC2034,SC2088
+set -euo pipefail
+
+resolve_launcher() {
+  local candidate resolved
+  local candidates=()
+
+  if [[ -n "${FIREFOX_SESSION_LAUNCHER:-}" ]]; then
+    candidates+=("${FIREFOX_SESSION_LAUNCHER}")
+  fi
+  candidates+=(
+    "fox"
+    "${HOME}/.local/bin/fox"
+    "${HOME}/.local/bin/firefox-dev"
+    "${HOME}/opt/firefox-dev/firefox"
+    "firefox"
+  )
+
+  for candidate in "${candidates[@]}"; do
+    [[ -n "${candidate}" ]] || continue
+    if resolved="$(command -v "${candidate}" 2>/dev/null)"; then
+      printf '%s\n' "${resolved}"
+      return 0
+    fi
+    if [[ -x "${candidate}" ]]; then
+      printf '%s\n' "${candidate}"
+      return 0
+    fi
+  done
+  return 1
+}
+
+launcher="$(resolve_launcher || true)"
+if [[ -z "${launcher}" ]]; then
+  echo "firefox-session: could not find a firefox launcher (tried fox/firefox-dev/firefox)" >&2
+  exit 1
+fi
+
+# Keep one real profile/session universe: no profile flags here.
+exec "${launcher}" "$@"

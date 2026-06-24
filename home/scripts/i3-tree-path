@@ -1,0 +1,166 @@
+#!/usr/bin/env python3
+import json
+import shutil
+import subprocess
+import sys
+
+
+LAYOUT_MAP = {
+    "splith": "h",
+    "splitv": "v",
+    "tabbed": "t",
+    "stacked": "s",
+}
+
+
+def children(node):
+    return list(node.get("nodes", [])) + list(node.get("floating_nodes", []))
+
+
+def index_nodes(node, mapping):
+    node_id = node.get("id")
+    if node_id is not None:
+        mapping[node_id] = node
+    for child in children(node):
+        index_nodes(child, mapping)
+
+
+def focused_chain(root):
+    mapping = {}
+    index_nodes(root, mapping)
+
+    chain = [root]
+    current = root
+    seen = {root.get("id")}
+    while current.get("focus"):
+        next_id = current["focus"][0]
+        next_node = mapping.get(next_id)
+        if not next_node:
+            break
+        node_id = next_node.get("id")
+        if node_id in seen:
+            break
+        chain.append(next_node)
+        seen.add(node_id)
+        current = next_node
+    return chain
+
+
+def normalize(text):
+    value = " ".join(str(text).split())
+    if not value:
+        return ""
+    if len(value) > 60:
+        value = value[:57] + "..."
+    return value.lower()
+
+
+def workspace_label(node):
+    num = node.get("num")
+    if isinstance(num, int) and num >= 0:
+        return f"ws{num}"
+    name = normalize(node.get("name", ""))
+    return f"ws{name}" if name else "ws?"
+
+
+def layout_marker(node):
+    return LAYOUT_MAP.get(node.get("layout"))
+
+
+def leaf_label(node):
+    props = node.get("window_properties") or {}
+    candidates = [
+        props.get("instance"),
+        props.get("class"),
+        node.get("app_id"),
+        node.get("name"),
+    ]
+    for candidate in candidates:
+        if not candidate:
+            continue
+        label = normalize(candidate)
+        if label and not label.startswith("i3:"):
+            return label
+    marker = layout_marker(node)
+    if marker:
+        return marker
+    return normalize(node.get("type", "con")) or "con"
+
+
+def render_path(root):
+    chain = focused_chain(root)
+    output = []
+    in_workspace = False
+
+    for idx, node in enumerate(chain):
+        ntype = node.get("type")
+        is_last = idx == len(chain) - 1
+
+        if ntype == "workspace":
+            output = [workspace_label(node)]
+            in_workspace = True
+            continue
+        if not in_workspace:
+            continue
+
+        if is_last:
+            output.append(leaf_label(node))
+            continue
+
+        marker = layout_marker(node)
+        if marker:
+            output.append(marker)
+
+    if not output:
+        output = [leaf_label(chain[-1])]
+    return " > ".join(output)
+
+
+def notify(text):
+    if shutil.which("dunstify"):
+        subprocess.run(
+            ["dunstify", "-a", "i3-tree-path", "i3 tree", text],
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        return
+    if shutil.which("notify-send"):
+        subprocess.run(
+            ["notify-send", "i3 tree", text],
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+
+
+def main():
+    if not shutil.which("i3-msg"):
+        print("i3-tree-path: i3-msg is not installed", file=sys.stderr)
+        return 1
+
+    proc = subprocess.run(
+        ["i3-msg", "-t", "get_tree"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if proc.returncode != 0:
+        error = proc.stderr.strip() or "failed to query i3 tree"
+        print(f"i3-tree-path: {error}", file=sys.stderr)
+        return 1
+
+    try:
+        tree = json.loads(proc.stdout)
+    except json.JSONDecodeError as exc:
+        print(f"i3-tree-path: invalid i3 tree JSON: {exc}", file=sys.stderr)
+        return 1
+
+    text = render_path(tree)
+    print(text)
+    notify(text)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

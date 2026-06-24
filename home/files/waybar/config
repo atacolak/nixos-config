@@ -1,8 +1,6 @@
 {
   "layer": "top",
   "position": "top",
-  "mode": "hide",
-  "modifier-reset": "release",
   "height": 28,
   "modules-left": ["hyprland/workspaces", "hyprland/window"],
   "modules-center": ["clock"],

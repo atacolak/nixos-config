@@ -1,0 +1,236 @@
+#!/usr/bin/env python3
+import json
+import shutil
+import subprocess
+import sys
+import time
+
+
+APP_SPECS = {
+    "terminal": {
+        "aliases": {"terminal", "t"},
+        "command": ["kitty-shade"],
+        "match_terms": ["kitty"],
+    },
+    "firefox": {
+        "aliases": {"firefox", "f"},
+        "command": ["firefox-session", "--new-window"],
+        "match_terms": ["firefox"],
+    },
+    "code": {
+        "aliases": {"code", "c"},
+        "command": ["code", "-n"],
+        "match_terms": ["code"],
+    },
+    "thunar": {
+        "aliases": {"thunar", "d"},
+        "command": ["thunar"],
+        "match_terms": ["thunar"],
+    },
+}
+
+ALIAS_TO_APP = {}
+for key, spec in APP_SPECS.items():
+    for alias in spec["aliases"]:
+        ALIAS_TO_APP[alias] = key
+
+
+def i3_quote(value):
+    escaped = str(value).replace("\\", "\\\\").replace('"', '\\"')
+    return f'"{escaped}"'
+
+
+def run_i3(command):
+    proc = subprocess.run(
+        ["i3-msg", command],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if proc.returncode != 0:
+        raise RuntimeError(proc.stderr.strip() or f"i3-msg failed: {command}")
+    if proc.stdout.strip():
+        try:
+            payload = json.loads(proc.stdout)
+            if isinstance(payload, list):
+                for entry in payload:
+                    if isinstance(entry, dict) and entry.get("success") is False:
+                        error = entry.get("error") or f"i3 command failed: {command}"
+                        raise RuntimeError(error)
+        except json.JSONDecodeError:
+            pass
+
+
+def get_tree():
+    proc = subprocess.run(
+        ["i3-msg", "-t", "get_tree"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if proc.returncode != 0:
+        raise RuntimeError(proc.stderr.strip() or "failed to query i3 tree")
+    try:
+        return json.loads(proc.stdout)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(f"invalid i3 tree JSON: {exc}") from exc
+
+
+def get_focused_workspace_name():
+    proc = subprocess.run(
+        ["i3-msg", "-t", "get_workspaces"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if proc.returncode != 0:
+        raise RuntimeError(proc.stderr.strip() or "failed to query i3 workspaces")
+    try:
+        payload = json.loads(proc.stdout)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(f"invalid get_workspaces JSON: {exc}") from exc
+
+    if not isinstance(payload, list):
+        raise RuntimeError("unexpected get_workspaces payload")
+    for workspace in payload:
+        if isinstance(workspace, dict) and workspace.get("focused") is True:
+            name = workspace.get("name")
+            if name:
+                return name
+            raise RuntimeError("focused workspace has no name")
+    raise RuntimeError("could not determine focused workspace from get_workspaces")
+
+
+def walk_windows(node, workspace=None, acc=None):
+    if acc is None:
+        acc = []
+    if node.get("type") == "workspace":
+        workspace = node.get("name")
+
+    props = node.get("window_properties") or {}
+    if node.get("window") is not None or node.get("app_id") or props:
+        acc.append(
+            {
+                "id": node.get("id"),
+                "workspace": workspace,
+                "focused": bool(node.get("focused")),
+                "class": (props.get("class") or "").lower(),
+                "instance": (props.get("instance") or "").lower(),
+                "app_id": (node.get("app_id") or "").lower(),
+                "name": (node.get("name") or "").lower(),
+            }
+        )
+
+    for child in node.get("nodes", []):
+        walk_windows(child, workspace, acc)
+    for child in node.get("floating_nodes", []):
+        walk_windows(child, workspace, acc)
+    return acc
+
+
+def matches_window(window_info, match_terms):
+    for term in match_terms:
+        term = term.lower()
+        if (
+            term in window_info["class"]
+            or term in window_info["instance"]
+            or term in window_info["app_id"]
+            or term in window_info["name"]
+        ):
+            return True
+    return False
+
+
+def choose_candidate(candidates, target_workspace):
+    if not candidates:
+        return None
+    scored = sorted(
+        candidates,
+        key=lambda item: (
+            1 if item["focused"] else 0,
+            1 if item["workspace"] == target_workspace else 0,
+            item["id"] or 0,
+        ),
+        reverse=True,
+    )
+    return scored[0]
+
+
+def usage():
+    apps = ", ".join(sorted(APP_SPECS.keys()))
+    print(f"Usage: i3-spawn-here <app>\nAvailable apps: {apps}", file=sys.stderr)
+
+
+def main():
+    if not shutil.which("i3-msg"):
+        print("i3-spawn-here: i3-msg is not in PATH", file=sys.stderr)
+        return 1
+    if len(sys.argv) != 2:
+        usage()
+        return 1
+
+    alias = sys.argv[1].strip().lower()
+    app_key = ALIAS_TO_APP.get(alias)
+    if not app_key:
+        print(f"i3-spawn-here: unsupported app '{sys.argv[1]}'", file=sys.stderr)
+        usage()
+        return 1
+
+    spec = APP_SPECS[app_key]
+    command = spec["command"]
+    match_terms = spec["match_terms"]
+
+    if not shutil.which(command[0]):
+        print(f"i3-spawn-here: launcher not found: {command[0]}", file=sys.stderr)
+        return 1
+
+    try:
+        target_workspace = get_focused_workspace_name()
+        before_tree = get_tree()
+        baseline = {
+            w["id"]
+            for w in walk_windows(before_tree)
+            if w["id"] is not None and matches_window(w, match_terms)
+        }
+    except RuntimeError as exc:
+        print(f"i3-spawn-here: {exc}", file=sys.stderr)
+        return 1
+
+    subprocess.Popen(command, start_new_session=True)
+
+    deadline = time.time() + 8.0
+    while time.time() < deadline:
+        time.sleep(0.1)
+        try:
+            tree = get_tree()
+        except RuntimeError:
+            continue
+        windows = [w for w in walk_windows(tree) if matches_window(w, match_terms)]
+        new_windows = [w for w in windows if w["id"] not in baseline]
+        candidate = choose_candidate(new_windows, target_workspace)
+        if candidate:
+            try:
+                if candidate["workspace"] != target_workspace:
+                    run_i3(
+                        f"[con_id={candidate['id']}] move container to workspace {i3_quote(target_workspace)}"
+                    )
+                run_i3(f"workspace {i3_quote(target_workspace)}")
+                run_i3(f"[con_id={candidate['id']}] focus")
+                return 0
+            except RuntimeError as exc:
+                print(f"i3-spawn-here: {exc}", file=sys.stderr)
+                return 1
+
+    try:
+        run_i3(f"workspace {i3_quote(target_workspace)}")
+    except Exception:
+        pass
+    print(
+        f"i3-spawn-here: timed out waiting for a new '{app_key}' window to appear",
+        file=sys.stderr,
+    )
+    return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

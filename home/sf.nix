@@ -53,6 +53,80 @@ let
     runtimeInputs = with pkgs; [ hyprland jq coreutils ];
     text = builtins.readFile ./scripts/hypr-kill-active;
   };
+
+
+  swayWmutil = pkgs.writeScriptBin "wmutil" ''
+    #!${pkgs.python3}/bin/python3
+    ${builtins.readFile ./scripts/wmutil}
+  '';
+
+  swayI3Msg = pkgs.writeShellApplication {
+    name = "i3-msg";
+    runtimeInputs = with pkgs; [ sway ];
+    text = builtins.readFile ./scripts/i3-msg;
+  };
+
+  swayI3Lock = pkgs.writeShellApplication {
+    name = "i3-lock";
+    runtimeInputs = with pkgs; [ swaylock ];
+    text = builtins.readFile ./scripts/i3-lock;
+  };
+
+  firefoxSession = pkgs.writeShellApplication {
+    name = "firefox-session";
+    runtimeInputs = with pkgs; [ firefox ];
+    text = builtins.readFile ./scripts/firefox-session;
+  };
+
+  i3CycleTabSibling = pkgs.writeScriptBin "i3-cycle-tab-sibling" ''
+    #!${pkgs.python3}/bin/python3
+    ${builtins.readFile ./scripts/i3-cycle-tab-sibling}
+  '';
+
+  i3SpawnHere = pkgs.writeScriptBin "i3-spawn-here" ''
+    #!${pkgs.python3}/bin/python3
+    ${builtins.readFile ./scripts/i3-spawn-here}
+  '';
+
+  i3TreePath = pkgs.writeScriptBin "i3-tree-path" ''
+    #!${pkgs.python3}/bin/python3
+    ${builtins.readFile ./scripts/i3-tree-path}
+  '';
+
+  i3PruneFirefoxPrograms = pkgs.writeScriptBin "i3-resurrect-prune-firefox-programs" ''
+    #!${pkgs.python3}/bin/python3
+    ${builtins.readFile ./scripts/i3-resurrect-prune-firefox-programs}
+  '';
+
+  i3SaveDefaultWorkspaces = pkgs.writeShellApplication {
+    name = "i3-save-default-workspaces";
+    runtimeInputs = [ pkgs.i3-resurrect i3PruneFirefoxPrograms ];
+    text = builtins.readFile ./scripts/i3-save-default-workspaces;
+  };
+
+  i3RestoreDefaultWorkspaces = pkgs.writeShellApplication {
+    name = "i3-restore-default-workspaces";
+    runtimeInputs = [ pkgs.i3-resurrect i3PruneFirefoxPrograms ];
+    text = builtins.readFile ./scripts/i3-restore-default-workspaces;
+  };
+
+  i3ResurrectSaveWorkspace = pkgs.writeShellApplication {
+    name = "i3-resurrect-save-workspace-confirm";
+    runtimeInputs = with pkgs; [ i3-resurrect i3PruneFirefoxPrograms libnotify pulseaudio alsa-utils ];
+    text = builtins.readFile ./scripts/i3-resurrect-save-workspace-confirm;
+  };
+
+  i3ResurrectRestoreWorkspace = pkgs.writeShellApplication {
+    name = "i3-resurrect-restore-workspace-confirm";
+    runtimeInputs = with pkgs; [ i3-resurrect i3PruneFirefoxPrograms libnotify pulseaudio alsa-utils ];
+    text = builtins.readFile ./scripts/i3-resurrect-restore-workspace-confirm;
+  };
+
+  handyTranscribeToggle = pkgs.writeShellApplication {
+    name = "handy-transcribe-toggle";
+    runtimeInputs = with pkgs; [ pulseaudio curl jq wl-clipboard libnotify ];
+    text = builtins.readFile ./scripts/handy-transcribe-toggle;
+  };
 in
 {
   home.username = "sf";
@@ -79,6 +153,13 @@ in
     waybar
     fuzzel
     mako
+    dunst
+    rofi
+    flameshot
+    i3status-rust
+    swayidle
+    swaylock
+    sway-contrib.grimshot
     hyprpaper
     hyprlock
     hypridle
@@ -92,6 +173,7 @@ in
     grim
     slurp
     nautilus
+    thunar
     blueman
     vscode
 
@@ -107,6 +189,20 @@ in
     hyprGroupToggle
     hyprGroupStart
     hyprKillActive
+    handyTranscribeToggle
+
+    swayWmutil
+    swayI3Msg
+    swayI3Lock
+    firefoxSession
+    i3CycleTabSibling
+    i3SpawnHere
+    i3TreePath
+    i3PruneFirefoxPrograms
+    i3SaveDefaultWorkspaces
+    i3RestoreDefaultWorkspaces
+    i3ResurrectSaveWorkspace
+    i3ResurrectRestoreWorkspace
   ];
 
   programs.bash.enable = true;
@@ -223,4 +319,22 @@ in
   xdg.configFile."mako/config".source = ./files/hypr/mako.conf;
   xdg.configFile."waybar/config".source = ./files/waybar/config;
   xdg.configFile."waybar/style.css".source = ./files/waybar/style.css;
+
+  xdg.configFile."sway/config".source = ./files/sway/config;
+  xdg.configFile."sway/wallpaper.jpg".source = ./files/sway/wallpaper.jpg;
+  xdg.configFile."i3status-rust/config.toml".source = ./files/i3status-rust/config.toml;
+
+  dconf.settings = {
+    "org/gnome/settings-daemon/plugins/media-keys/custom-keybindings" = {
+      custom-keybindings = [ "/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/" ];
+    };
+    "org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0" = {
+      name = "handy-transcribe-toggle";
+      binding = "<Control>space";
+      command = "${handyTranscribeToggle}/bin/handy-transcribe-toggle";
+    };
+    "desktop/ibus/general/hotkey" = {
+      triggers = "@as []";
+    };
+  };
 }

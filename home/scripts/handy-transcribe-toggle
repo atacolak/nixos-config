@@ -1,0 +1,127 @@
+#!/usr/bin/env bash
+set -uo pipefail
+
+api_url="http://100.68.60.39:8320/v1/transcribe/raw"
+state_file="/tmp/handy_transcribe_state"
+raw_file="/tmp/handy_record.raw"
+wav_file="/tmp/handy_record.wav"
+notify_id_file="/tmp/handy_last_notif_id"
+log="/tmp/handy_debug.log"
+
+echo "[$(date '+%H:%M:%S')] === run ===" >> "$log"
+
+# --- notification: explicitly kill previous, then show new ---
+notify() {
+  local title="$1" body="$2" old_id new_id
+  if [[ -f "$notify_id_file" ]]; then
+    old_id=$(cat "$notify_id_file")
+    if [[ "$old_id" -gt 0 ]]; then
+      gdbus call --session \
+        --dest org.freedesktop.Notifications \
+        --object-path /org/freedesktop/Notifications \
+        --method org.freedesktop.Notifications.CloseNotification \
+        "$old_id" >/dev/null 2>&1 || true
+    fi
+  fi
+  new_id=$(gdbus call --session \
+    --dest org.freedesktop.Notifications \
+    --object-path /org/freedesktop/Notifications \
+    --method org.freedesktop.Notifications.Notify \
+    "handy-toggle" 0 "" "$title" "$body" '[]' \
+    '{"transient": <true>, "urgency": <byte 1>}' \
+    4000 2>/dev/null | grep -oP '\d+' | head -1)
+  echo "$new_id" > "$notify_id_file"
+}
+
+wrap_wav() {
+  local raw="$1" wav="$2" sr="$3" channels="$4" bits="$5" raw_size data_size riff_size block_align byte_rate
+  raw_size=$(stat -c%s "$raw" 2>/dev/null || echo 0)
+  if [[ "$raw_size" -eq 0 ]]; then return 1; fi
+  data_size=$raw_size
+  riff_size=$((data_size + 36))
+  block_align=$((channels * bits / 8))
+  byte_rate=$((sr * block_align))
+  python3 -c "
+import struct
+with open('$raw', 'rb') as f:
+    pcm = f.read()
+header = struct.pack('<4sI4s4sIHHIIHH',
+    b'RIFF', $riff_size, b'WAVE', b'fmt ',
+    16, 1, $channels, $sr, $byte_rate, $block_align, $bits)
+header += b'data' + struct.pack('<I', $data_size)
+with open('$wav', 'wb') as f:
+    f.write(header)
+    f.write(pcm)
+"
+}
+
+MIN_BYTES=32000
+
+if [[ -f "$state_file" ]]; then
+  ##### Stop recording #####
+  pid=$(cat "$state_file")
+  rm -f "$state_file"
+
+  # kill recording notification immediately — user pressed the bind
+  notify "transcribing…" "stopping mic…"
+
+  if kill -0 "$pid" 2>/dev/null; then
+    kill -INT "$pid" 2>/dev/null || true
+    wait "$pid" 2>/dev/null || true
+    sleep 0.3
+  fi
+
+  raw_size=$(stat -c%s "$raw_file" 2>/dev/null || echo 0)
+  echo "[$(date '+%H:%M:%S')] killed pid=$pid raw_size=$raw_size" >> "$log"
+
+  if [[ ! -f "$raw_file" ]] || [[ "$raw_size" -lt "$MIN_BYTES" ]]; then
+    notify "error" "audio too short ($raw_size bytes)"
+    exit 1
+  fi
+
+  wrap_wav "$raw_file" "$wav_file" 44100 2 16
+  wav_size=$(stat -c%s "$wav_file" 2>/dev/null || echo 0)
+  echo "[$(date '+%H:%M:%S')] wrapped wav_size=$wav_size" >> "$log"
+
+  notify "transcribing…" "sending to desktop…"
+
+  echo "[$(date '+%H:%M:%S')] curl start" >> "$log"
+  res=$(curl -s --max-time 90 -H 'Content-Type: application/octet-stream' \
+    --data-binary "@$wav_file" "$api_url" 2>>"$log")
+  curl_exit=$?
+  echo "[$(date '+%H:%M:%S')] curl exit=$curl_exit len=${#res}" >> "$log"
+
+  text=$(echo "$res" | jq -r '.text // empty' 2>>"$log")
+  echo "[$(date '+%H:%M:%S')] text='${text:0:120}'" >> "$log"
+
+  if [[ -n "$text" ]]; then
+    printf '%s' "$text" | wl-copy
+    notify "done" "$(echo "$text" | head -c 140)"
+    echo "[$(date '+%H:%M:%S')] clipboard OK" >> "$log"
+    rm -f "$raw_file" "$wav_file"
+  else
+    dur=$(echo "$res" | jq -r '.duration // "?"' 2>>"$log")
+    err=$(echo "$res" | jq -r '.error // "empty result"' 2>>"$log")
+    echo "[$(date '+%H:%M:%S')] failed: $err (dur=$dur)" >> "$log"
+    notify "failed" "$err"
+  fi
+else
+  ##### Start recording #####
+  rm -f "$raw_file" "$wav_file" "$notify_id_file"
+
+  timeout 300 parecord --latency-msec=100 --raw "$raw_file" 2>/dev/null &
+  rec_pid=$!
+  disown "$rec_pid"
+  echo "$rec_pid" > "$state_file"
+
+  sleep 0.5
+  if kill -0 "$rec_pid" 2>/dev/null; then
+    echo "[$(date '+%H:%M:%S')] parecord pid=$rec_pid running" >> "$log"
+    notify "recording…" "ctrl+space to stop"
+  else
+    echo "[$(date '+%H:%M:%S')] parecord died early" >> "$log"
+    notify "error" "parecord failed to start"
+    rm -f "$state_file"
+    exit 1
+  fi
+fi

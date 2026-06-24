@@ -23,16 +23,11 @@ in
     };
   };
 
+  # Keep GDM as the greeter/login manager, but do not expose a GNOME desktop
+  # session by default. Sway is the intended daily driver.
   services.displayManager.gdm.enable = true;
-  services.desktopManager.gnome.enable = true;
 
-  programs.hyprland = {
-    enable = true;
-    withUWSM = true;
-  };
-
-  # Alternate session for when the desired model is i3-on-wayland rather than
-  # Hyprland approximating i3. GDM should expose both Hyprland and Sway.
+  # i3-on-wayland daily driver.
   programs.sway = {
     enable = true;
     xwayland.enable = true;

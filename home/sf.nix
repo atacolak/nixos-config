@@ -19,41 +19,10 @@ let
     text = builtins.readFile ./scripts/audio-toggle;
   };
 
-  hyprCycleOrRun = pkgs.writeShellApplication {
-    name = "hypr-cycle-or-run";
-    runtimeInputs = with pkgs; [ hyprland jq util-linux ];
-    text = builtins.readFile ./scripts/hypr-cycle-or-run;
-  };
-
   audioInputToggle = pkgs.writeScriptBin "audio-input-toggle" ''
     #!${pkgs.python3}/bin/python3
     ${builtins.readFile ./scripts/audio-input-toggle}
   '';
-
-  touchpadToggle = pkgs.writeShellApplication {
-    name = "touchpad-toggle";
-    runtimeInputs = with pkgs; [ hyprland libnotify ];
-    text = builtins.readFile ./scripts/touchpad-toggle;
-  };
-
-  hyprGroupToggle = pkgs.writeShellApplication {
-    name = "hypr-group-toggle";
-    runtimeInputs = with pkgs; [ hyprland jq ];
-    text = builtins.readFile ./scripts/hypr-group-toggle;
-  };
-
-  hyprGroupStart = pkgs.writeShellApplication {
-    name = "hypr-group-start";
-    runtimeInputs = with pkgs; [ hyprland jq ];
-    text = builtins.readFile ./scripts/hypr-group-start;
-  };
-
-  hyprKillActive = pkgs.writeShellApplication {
-    name = "hypr-kill-active";
-    runtimeInputs = with pkgs; [ hyprland jq coreutils ];
-    text = builtins.readFile ./scripts/hypr-kill-active;
-  };
-
 
   swayWmutil = pkgs.writeScriptBin "wmutil" ''
     #!${pkgs.python3}/bin/python3
@@ -150,9 +119,6 @@ in
     unzip
 
     kitty
-    waybar
-    fuzzel
-    mako
     dunst
     rofi
     flameshot
@@ -160,9 +126,6 @@ in
     swayidle
     swaylock
     sway-contrib.grimshot
-    hyprpaper
-    hyprlock
-    hypridle
     brightnessctl
     playerctl
     networkmanagerapplet
@@ -184,11 +147,6 @@ in
     taskTerminal
     audioToggle
     audioInputToggle
-    hyprCycleOrRun
-    touchpadToggle
-    hyprGroupToggle
-    hyprGroupStart
-    hyprKillActive
     handyTranscribeToggle
 
     swayWmutil
@@ -309,16 +267,10 @@ in
   xdg.configFile."kitty/kitty.conf".source = ./files/kitty/kitty.conf;
   xdg.configFile."kitty/opacity.conf".source = ./files/kitty/opacity.conf;
 
-  xdg.configFile."hypr/hyprland.conf".source = ./files/hypr/hyprland.conf;
-  xdg.configFile."hypr/hyprpaper.conf".source = ./files/hypr/hyprpaper.conf;
-  xdg.configFile."hypr/hyprlock.conf".source = ./files/hypr/hyprlock.conf;
-  xdg.configFile."hypr/hypridle.conf".source = ./files/hypr/hypridle.conf;
-  xdg.configFile."hypr/wallpaper.jpg".source = ./files/hypr/wallpaper.jpg;
-
-  xdg.configFile."fuzzel/fuzzel.ini".source = ./files/hypr/fuzzel.ini;
-  xdg.configFile."mako/config".source = ./files/hypr/mako.conf;
-  xdg.configFile."waybar/config".source = ./files/waybar/config;
-  xdg.configFile."waybar/style.css".source = ./files/waybar/style.css;
+  xdg.configFile."flameshot/flameshot.ini".text = ''
+    [General]
+    useGrimAdapter=true
+  '';
 
   xdg.configFile."sway/config".source = ./files/sway/config;
   xdg.configFile."sway/wallpaper.jpg".source = ./files/sway/wallpaper.jpg;

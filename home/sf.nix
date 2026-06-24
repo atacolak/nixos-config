@@ -100,12 +100,6 @@ let
     text = builtins.readFile ./scripts/i3-resurrect-restore-workspace-confirm;
   };
 
-  handyTranscribeToggle = pkgs.writeShellApplication {
-    name = "handy-transcribe-toggle";
-    runtimeInputs = with pkgs; [ pulseaudio curl jq wl-clipboard libnotify ];
-    text = builtins.readFile ./scripts/handy-transcribe-toggle;
-  };
-in
 {
   home.username = "sf";
   home.homeDirectory = "/home/sf";
@@ -162,7 +156,6 @@ in
     taskTerminal
     audioToggle
     audioInputToggle
-    handyTranscribeToggle
     swayKillClean
 
     swayWmutil
@@ -350,14 +343,6 @@ in
   xdg.configFile."i3status-rust/config.toml".source = ./files/i3status-rust/config.toml;
 
   dconf.settings = {
-    "org/gnome/settings-daemon/plugins/media-keys/custom-keybindings" = {
-      custom-keybindings = [ "/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/" ];
-    };
-    "org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0" = {
-      name = "handy-transcribe-toggle";
-      binding = "<Control>space";
-      command = "${handyTranscribeToggle}/bin/handy-transcribe-toggle";
-    };
     "desktop/ibus/general/hotkey" = {
       triggers = "@as []";
     };

@@ -1,0 +1,61 @@
+* {
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-size: 13px;
+  color: #e6edf3;
+}
+
+.blank-window { background: transparent; }
+
+.notification-row { outline: none; }
+.notification-row:focus,
+.notification-row:hover { background: transparent; }
+
+.notification {
+  background: rgba(11, 15, 20, 0.92);
+  border: 1px solid rgba(111, 168, 186, 0.72);
+  border-radius: 14px;
+  margin: 8px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.38);
+}
+
+.notification-content { padding: 12px; }
+.summary { color: #f2fbff; font-weight: 700; }
+.time { color: #6f7f86; font-size: 12px; }
+.body { color: #c8d7dd; }
+
+.close-button {
+  background: rgba(34, 51, 68, 0.92);
+  color: #e6edf3;
+  border-radius: 999px;
+  border: 1px solid rgba(111, 168, 186, 0.55);
+  margin: 6px;
+  min-width: 22px;
+  min-height: 22px;
+}
+.close-button:hover { background: rgba(111, 168, 186, 0.35); }
+
+.control-center {
+  background: rgba(11, 15, 20, 0.94);
+  border: 1px solid rgba(111, 168, 186, 0.72);
+  border-radius: 16px;
+  margin: 12px;
+  padding: 10px;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.45);
+}
+
+.control-center .notification { margin: 7px 0; }
+.control-center-list { background: transparent; }
+.control-center-list-placeholder { color: #6f7f86; }
+
+.widget-title { margin: 6px 8px 10px; }
+.widget-title > label { color: #f2fbff; font-size: 16px; font-weight: 700; }
+.widget-title button,
+.widget-dnd switch {
+  background: rgba(34, 51, 68, 0.75);
+  border: 1px solid rgba(111, 168, 186, 0.45);
+  border-radius: 999px;
+  color: #e6edf3;
+}
+.widget-title button:hover { background: rgba(111, 168, 186, 0.25); }
+.widget-dnd { margin: 4px 8px 10px; color: #c8d7dd; }
+.widget-mpris { margin: 8px; padding: 10px; border-radius: 14px; background: rgba(18, 27, 35, 0.86); }

@@ -42,18 +42,20 @@ bindsym XF86MonBrightnessDown exec --no-startup-id brightnessctl set 5%-
 bindsym XF86MonBrightnessUp   exec --no-startup-id brightnessctl set +5%
 bindsym XF86TouchpadToggle    input type:touchpad events toggle enabled disabled
 
-# Traditional touchpad scroll: moving fingers up moves visible content down.
+# Natural touchpad scroll, phone-style: fingers down moves content up.
 input type:touchpad {
     tap enabled
-    natural_scroll disabled
+    natural_scroll enabled
 }
+
+seat * xcursor_theme Bibata-Modern-Ice 24
 
 # --- media keys (mpris) ---
 bindsym XF86AudioPrev exec --no-startup-id playerctl previous
 bindsym XF86AudioPlay exec --no-startup-id playerctl play-pause
 bindsym XF86AudioNext exec --no-startup-id playerctl next
 
-exec --no-startup-id dunst
+exec --no-startup-id swaync
 exec_always --no-startup-id sh -lc 'pkill -x swayidle; swayidle -w timeout 600 "i3-lock"'
 
 # repo-managed helpers, installed by home-manager
@@ -74,8 +76,9 @@ set $i3_resurrect_restore_ws i3-resurrect-restore-workspace-confirm
 # terminal / launcher
 bindsym $mod+Return exec --no-startup-id $term
 bindsym $mod+shift+z exec --no-startup-id task-terminal main
-bindsym $mod+space exec --no-startup-id rofi -show drun
-bindsym $mod+q kill
+bindsym $mod+space exec --no-startup-id fuzzel
+bindsym $mod+q exec --no-startup-id sway-kill-clean
+bindsym $mod+n exec --no-startup-id swaync-client --toggle-panel
 bindsym $mod+Shift+q exec --no-startup-id $wmutil kill-class
 
 # app binds
@@ -130,10 +133,10 @@ bindsym $mod+Shift+t exec --no-startup-id $i3_spawn_here terminal
 bindsym $mod+Shift+d exec --no-startup-id $i3_spawn_here thunar
 
 # screenshots
-# Mod+Shift+S  → clipboard only (original)
-bindsym $mod+Shift+s exec --no-startup-id flameshot gui -c
-# Mod+Shift+Alt+S → save to ~/Pictures/Screenshots (original)
-bindsym $mod+Shift+Mod1+s exec --no-startup-id sh -lc 'flameshot gui -p "$HOME/Pictures/Screenshots"'
+# Mod+Shift+S  → select area and copy to clipboard.
+bindsym $mod+Shift+s exec --no-startup-id grimshot --notify copy area
+# Mod+Shift+Alt+S → select area and save to ~/Pictures/Screenshots.
+bindsym $mod+Shift+Mod1+s exec --no-startup-id sh -lc 'mkdir -p "$HOME/Pictures/Screenshots"; grimshot --notify save area "$HOME/Pictures/Screenshots/$(date +%Y-%m-%d_%H-%M-%S).png"'
 
 # lock screen (Super+;)
 bindsym $mod+semicolon exec --no-startup-id $i3_lock_cmd

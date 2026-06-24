@@ -24,6 +24,13 @@ let
     ${builtins.readFile ./scripts/audio-input-toggle}
   '';
 
+  modernMinimalUiSounds = pkgs.callPackage ../pkgs/modern-minimal-ui-sounds.nix { };
+
+  swayKillClean = pkgs.writeScriptBin "sway-kill-clean" ''
+    #!${pkgs.python3}/bin/python3
+    ${builtins.readFile ./scripts/sway-kill-clean}
+  '';
+
   swayWmutil = pkgs.writeScriptBin "wmutil" ''
     #!${pkgs.python3}/bin/python3
     ${builtins.readFile ./scripts/wmutil}
@@ -81,13 +88,13 @@ let
 
   i3ResurrectSaveWorkspace = pkgs.writeShellApplication {
     name = "i3-resurrect-save-workspace-confirm";
-    runtimeInputs = with pkgs; [ i3-resurrect i3PruneFirefoxPrograms libnotify pulseaudio alsa-utils ];
+    runtimeInputs = with pkgs; [ i3-resurrect i3PruneFirefoxPrograms libnotify libcanberra-gtk3 pulseaudio alsa-utils ];
     text = builtins.readFile ./scripts/i3-resurrect-save-workspace-confirm;
   };
 
   i3ResurrectRestoreWorkspace = pkgs.writeShellApplication {
     name = "i3-resurrect-restore-workspace-confirm";
-    runtimeInputs = with pkgs; [ i3-resurrect i3PruneFirefoxPrograms libnotify pulseaudio alsa-utils ];
+    runtimeInputs = with pkgs; [ i3-resurrect i3PruneFirefoxPrograms libnotify libcanberra-gtk3 pulseaudio alsa-utils ];
     text = builtins.readFile ./scripts/i3-resurrect-restore-workspace-confirm;
   };
 
@@ -119,13 +126,16 @@ in
     unzip
 
     kitty
-    dunst
-    rofi
-    flameshot
+    fuzzel
+    swaynotificationcenter
     i3status-rust
     swayidle
     swaylock
     sway-contrib.grimshot
+    bibata-cursors
+    modernMinimalUiSounds
+    libcanberra-gtk3
+    sound-theme-freedesktop
     brightnessctl
     playerctl
     networkmanagerapplet
@@ -148,6 +158,7 @@ in
     audioToggle
     audioInputToggle
     handyTranscribeToggle
+    swayKillClean
 
     swayWmutil
     swayI3Msg
@@ -214,6 +225,8 @@ in
     EDITOR = "nvim";
     VISUAL = "nvim";
     NIXOS_OZONE_WL = "1";
+    XCURSOR_THEME = "Bibata-Modern-Ice";
+    XCURSOR_SIZE = "24";
   };
 
   programs.ssh = {
@@ -267,9 +280,31 @@ in
   xdg.configFile."kitty/kitty.conf".source = ./files/kitty/kitty.conf;
   xdg.configFile."kitty/opacity.conf".source = ./files/kitty/opacity.conf;
 
-  xdg.configFile."flameshot/flameshot.ini".text = ''
-    [General]
-    useGrimAdapter=true
+  xdg.configFile."fuzzel/fuzzel.ini".source = ./files/fuzzel/fuzzel.ini;
+  xdg.configFile."swaync/config.json".source = ./files/swaync/config.json;
+  xdg.configFile."swaync/style.css".source = ./files/swaync/style.css;
+
+  xdg.configFile."icons/default/index.theme".text = ''
+    [Icon Theme]
+    Inherits=Bibata-Modern-Ice
+  '';
+
+  xdg.configFile."gtk-3.0/settings.ini".text = ''
+    [Settings]
+    gtk-cursor-theme-name=Bibata-Modern-Ice
+    gtk-cursor-theme-size=24
+    gtk-sound-theme-name=modern-minimal-ui-sounds
+    gtk-enable-event-sounds=1
+    gtk-enable-input-feedback-sounds=1
+  '';
+
+  xdg.configFile."gtk-4.0/settings.ini".text = ''
+    [Settings]
+    gtk-cursor-theme-name=Bibata-Modern-Ice
+    gtk-cursor-theme-size=24
+    gtk-sound-theme-name=modern-minimal-ui-sounds
+    gtk-enable-event-sounds=1
+    gtk-enable-input-feedback-sounds=1
   '';
 
   xdg.configFile."sway/config".source = ./files/sway/config;

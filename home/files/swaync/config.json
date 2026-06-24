@@ -1,0 +1,49 @@
+{
+  "$schema": "/etc/xdg/swaync/configSchema.json",
+  "ignore-gtk-theme": true,
+  "positionX": "right",
+  "positionY": "top",
+  "layer": "overlay",
+  "control-center-layer": "top",
+  "layer-shell": true,
+  "cssPriority": "user",
+  "notification-window-width": 420,
+  "control-center-width": 460,
+  "control-center-height": 620,
+  "fit-to-screen": true,
+  "keyboard-shortcuts": true,
+  "notification-grouping": true,
+  "image-visibility": "when-available",
+  "transition-time": 160,
+  "timeout": 6,
+  "timeout-low": 3,
+  "timeout-critical": 0,
+  "hide-on-action": true,
+  "hide-on-clear": false,
+  "text-empty": "no notifications",
+  "widgets": [
+    "title",
+    "dnd",
+    "mpris",
+    "notifications"
+  ],
+  "widget-config": {
+    "title": {
+      "text": "notifications",
+      "clear-all-button": true,
+      "button-text": "clear"
+    },
+    "dnd": {
+      "text": "do not disturb"
+    },
+    "mpris": {
+      "blacklist": [],
+      "autohide": true,
+      "show-album-art": "when-available",
+      "loop-carousel": false
+    },
+    "notifications": {
+      "vexpand": true
+    }
+  }
+}

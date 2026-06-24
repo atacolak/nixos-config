@@ -12,7 +12,7 @@ let
       if [ -r "$hci_path/address" ]; then
         address="$(cat "$hci_path/address")"
       else
-        address="$(${pkgs.bluez}/bin/hciconfig "$hci_name" 2>/dev/null | ${pkgs.gnused}/bin/sed -n 's/.*BD Address: \([0-9A-F:]*\).*//p' | ${pkgs.coreutils}/bin/head -n1)"
+        address="$(${pkgs.bluez}/bin/hciconfig "$hci_name" 2>/dev/null | ${pkgs.gawk}/bin/awk '/BD Address:/ { print $3; exit }')"
       fi
 
       if [ "$address" = "${internalBluetoothAddress}" ]; then

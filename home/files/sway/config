@@ -56,6 +56,7 @@ bindsym XF86AudioPlay exec --no-startup-id playerctl play-pause
 bindsym XF86AudioNext exec --no-startup-id playerctl next
 
 exec --no-startup-id swaync
+exec --no-startup-id handy-sway-start
 exec_always --no-startup-id sh -lc 'pkill -x swayidle; swayidle -w timeout 600 "i3-lock"'
 
 # repo-managed helpers, installed by home-manager
@@ -80,6 +81,11 @@ bindsym $mod+space exec --no-startup-id fuzzel
 bindsym $mod+q exec --no-startup-id sway-kill-clean
 bindsym $mod+n exec --no-startup-id swaync-client --toggle-panel
 bindsym $mod+Shift+q exec --no-startup-id $wmutil kill-class
+
+# handy's own tauri shortcut only works while the handy window is focused under sway.
+# bind it at the compositor layer instead so it is genuinely global.
+bindsym --no-repeat Control+space exec --no-startup-id handy --toggle-transcription
+bindsym --no-repeat Control+Shift+space exec --no-startup-id handy --toggle-post-process
 
 # app binds
 bindsym $mod+f exec --no-startup-id $wmutil cycle-or-run --class firefox --scope current --launch $firefox_session --new-window

@@ -27,26 +27,31 @@ systemctl --no-pager is-active home-manager-sf.service
 check a managed file:
 
 ```bash
-readlink ~/.config/hypr/hyprland.conf
+readlink ~/.config/sway/config
 readlink ~/.config/herdr/config.toml
 ```
 
-## hyprland
+## sway
 
-from inside the graphical hyprland session:
+from inside the graphical sway session:
 
 ```bash
-hyprctl configerrors
-hyprctl binds
-hyprctl devices
+swaymsg -t get_version
+swaymsg -t get_inputs
+swaymsg -t get_tree
 ```
 
-from ssh, `hyprctl` may fail with `HYPRLAND_INSTANCE_SIGNATURE not set`. that only proves the ssh shell is not inside the compositor session.
+from ssh, find the live socket first:
+
+```bash
+find /run/user/1000 -maxdepth 1 -type s -name 'sway-ipc.*.sock'
+swaymsg -s /run/user/1000/sway-ipc.*.sock reload
+```
 
 ## key scripts
 
 ```bash
-command -v kitty-shade task-terminal audio-toggle audio-input-toggle touchpad-toggle hypr-cycle-or-run
+command -v kitty-shade task-terminal audio-toggle audio-input-toggle wmutil i3-spawn-here sway-kill-clean handy
 ```
 
 ## kmonad keyboard

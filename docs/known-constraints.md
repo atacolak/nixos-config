@@ -38,20 +38,20 @@ usb csr dongle:          00:1A:7D:DA:71:13
 
 if bluetooth is changed, verify controller state and audio sink state. do not remove the workaround as "cleanup".
 
-## hyprland
+## sway
 
-hyprland config is plain hyprland `.conf` syntax, not lua.
+sway is the primary desktop session. the previous wayland compositor was removed from the active configuration and stale compositor-specific files should not be reintroduced as "cleanup".
 
 managed source:
 
 ```text
-home/files/hypr/hyprland.conf
+home/files/sway/config
 ```
 
 runtime target:
 
 ```text
-~/.config/hypr/hyprland.conf
+~/.config/sway/config
 ```
 
 home-manager owns the runtime file.
@@ -65,11 +65,11 @@ intended behavior:
 - single/hold caps emits super/meta
 - fast double-tap caps emits caps lock
 
-fn-row media keys are handled in hyprland as `XF86...` keysyms.
+fn-row media keys are handled in sway as `XF86...` keysyms.
 
 ## user config ownership
 
-home-manager owns important files under `~/.config`, including hyprland, kitty, waybar, fuzzel, mako, hyprpaper, hyprlock, hypridle, and herdr config.
+home-manager owns important files under `~/.config`, including sway, kitty, fuzzel, swaync, gtk, mimeapps, i3status-rust, and herdr config.
 
 manual ui edits may work temporarily, but they are not durable until represented in this repo.
 

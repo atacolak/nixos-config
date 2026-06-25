@@ -52,7 +52,7 @@ config entrypoints:
 
 - `home/files/`
   - declarative user config files linked into `~/.config` by home manager.
-  - hyprland, kitty, waybar, mako, fuzzel, hyprpaper, hyprlock, and hypridle live here.
+  - sway, kitty, fuzzel, swaynotificationcenter, i3status-rust, gtk, and cursor/sound config live here.
 
 - `home/scripts/`
   - helper scripts wrapped from `home/sf.nix` with `pkgs.writeShellApplication` or similar.
@@ -129,8 +129,8 @@ use these before editing common areas:
 - `docs/runbooks/home-manager-file.md`
   - how to add managed files under `~/.config` or user scripts.
 
-- `docs/runbooks/hyprland-keybind.md`
-  - how to alter hyprland binds or add helper commands.
+- `docs/runbooks/sway-keybind.md`
+  - how to alter sway binds or add helper commands.
 
 - `docs/runbooks/bluetooth.md`
   - how to touch bluetooth without breaking the airpods/dongle workaround.
@@ -201,7 +201,7 @@ if a module cannot be described in one plain sentence, it is probably fake struc
 ## do not
 
 - do not edit `/etc/xdg/herdr/config.toml`; edit `home/sf.nix`.
-- do not manually replace `~/.config/hypr/hyprland.conf`; home-manager owns it.
+- do not manually replace `~/.config/sway/config`; home-manager owns it.
 - do not delete `modules/bluetooth.nix` because the usb dongle workaround looks temporary.
 - do not put passwords, api keys, private ssh keys, tokens, or sudo passwords into nix files.
 - do not add untracked files and then run nix eval expecting flakes to see them.

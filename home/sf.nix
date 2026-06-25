@@ -33,6 +33,12 @@ let
     ${builtins.readFile ./scripts/sway-kill-clean}
   '';
 
+  handySwayStart = pkgs.writeShellApplication {
+    name = "handy-sway-start";
+    runtimeInputs = [ pkgs.jq handy ];
+    text = builtins.readFile ./scripts/handy-sway-start;
+  };
+
   swayWmutil = pkgs.writeScriptBin "wmutil" ''
     #!${pkgs.python3}/bin/python3
     ${builtins.readFile ./scripts/wmutil}
@@ -100,6 +106,7 @@ let
     text = builtins.readFile ./scripts/i3-resurrect-restore-workspace-confirm;
   };
 
+in
 {
   home.username = "sf";
   home.homeDirectory = "/home/sf";
@@ -136,6 +143,7 @@ let
     libcanberra-gtk3
     sound-theme-freedesktop
     handy
+    handySwayStart
     brightnessctl
     playerctl
     networkmanagerapplet

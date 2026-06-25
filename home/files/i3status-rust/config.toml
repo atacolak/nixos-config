@@ -1,16 +1,55 @@
-# minimal i3status-rust bar for i3bar/swaybar
+# monochrome i3status-rust bar for swaybar.
+# click wifi -> nmtui. click bt -> bluetui. terminal apps are documented in README.md.
 icons_format = ""
 
 [theme]
 theme = "plain"
 
 [[block]]
-block = "net"
-format = " net $ip dn $speed_down.eng(prefix:K) up $speed_up.eng(prefix:K) "
-format_alt = " net $device {$ssid |}$ip "
-missing_format = " net x "
-inactive_format = " net down "
-interval = 2
+block = "custom"
+command = '''
+ssid=$(nmcli -t -f active,ssid dev wifi 2>/dev/null | awk -F: '$1 == "yes" { print $2; exit }')
+state=$(nmcli -t -f DEVICE,TYPE,STATE device 2>/dev/null | awk -F: '$2 == "wifi" { print $3; exit }')
+if [ "$state" = "connected" ]; then
+  printf 'wifi %s' "${ssid:-up}"
+elif [ -n "$state" ]; then
+  printf 'wifi %s' "$state"
+else
+  printf 'wifi x'
+fi
+'''
+shell = "bash"
+interval = 5
+format = " $text "
+[[block.click]]
+button = "left"
+cmd = "kitty-shade --title nmtui nmtui"
+
+[[block]]
+block = "custom"
+command = '''
+if bluetoothctl show 2>/dev/null | grep -q 'Powered: yes'; then
+  connected=$(bluetoothctl devices Connected 2>/dev/null | wc -l)
+  if [ "$connected" -gt 0 ]; then
+    printf 'bt %s' "$connected"
+  else
+    printf 'bt on'
+  fi
+else
+  printf 'bt off'
+fi
+'''
+shell = "bash"
+interval = 5
+format = " $text "
+[[block.click]]
+button = "left"
+cmd = "kitty-shade --title bluetui bluetui"
+
+[[block]]
+block = "battery"
+format = " bat $percentage "
+missing_format = ""
 
 [[block]]
 block = "disk_space"
@@ -19,22 +58,22 @@ info_type = "available"
 alert_unit = "GB"
 warning = 20.0
 alert = 10.0
-format = " disk / $available.eng(w:4,p:Gi) free "
-format_alt = " disk / $used.eng(w:4,p:Gi)/$total.eng(w:4,p:Gi) "
+format = " / $available.eng(w:3,p:Gi) "
+format_alt = " / $used.eng(w:3,p:Gi)/$total.eng(w:3,p:Gi) "
 interval = 20
 
 [[block]]
 block = "load"
-format = " load $1m.eng(w:4) "
+format = " ld $1m.eng(w:3) "
 interval = 3
 
 [[block]]
 block = "memory"
-format = " mem $mem_used.eng(w:3,p:Gi) used, $mem_avail.eng(w:3,p:Gi) avail "
-format_alt = " mem $mem_used_percents.eng(w:2) used "
+format = " mem $mem_used_percents.eng(w:2) "
+format_alt = " mem $mem_used.eng(w:3,p:Gi)/$mem_total.eng(w:3,p:Gi) "
 interval = 5
 
 [[block]]
 block = "time"
 interval = 5
-format = " $timestamp.datetime(f:'%Y-%m-%d %H:%M:%S') "
+format = " $timestamp.datetime(f:'%Y-%m-%d %H:%M') "

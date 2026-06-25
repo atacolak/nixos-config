@@ -254,12 +254,35 @@ bindsym $mod+Ctrl+Shift+Right exec --no-startup-id $wmutil snap right-two-thirds
 bindsym $mod+Shift+r reload
 bindsym $mod+Shift+e exec --no-startup-id swaynag -t warning -m 'logout?' -b 'yes' 'swaymsg exit'
 
-# minimal bar: this is the i3bar behavior you wanted back.
+# bottom bar: i3/sway hide-on-mod behavior, but with a cleaner monochrome look.
 bar {
+  position bottom
   mode hide
   hidden_state hide
   modifier $mod
+  font pango:Fira Code 10
+  height 28
+  separator_symbol " "
+  status_padding 2
+  status_edge_padding 8
+  tray_output none
   status_command i3status-rs /home/sf/.config/i3status-rust/config.toml
+
+  colors {
+    background #0b0f14ee
+    statusline #d7e1ea
+    separator #223344
+
+    focused_background #0b0f14ee
+    focused_statusline #eef7fb
+    focused_separator #223344
+
+    focused_workspace #6fa8ba #10212a #eef7fb
+    active_workspace #223344 #101820 #d7e1ea
+    inactive_workspace #0b0f14 #0b0f14 #8b98a5
+    urgent_workspace #8f4f4f #2a1111 #ffffff
+    binding_mode #6fa8ba #10212a #ffffff
+  }
 }
 
 # resize mode

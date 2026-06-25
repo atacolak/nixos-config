@@ -155,6 +155,7 @@ in
     slurp
     thunar
     blueman
+    bluetui
     vscode
 
     jetbrains-mono

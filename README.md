@@ -21,3 +21,6 @@ rough split:
 
 this repo should stay boring.
 boring means recoverable.
+
+for bluetooth management, use `bluetui`.
+to manage wifi, use `nmtui`.

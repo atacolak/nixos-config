@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+STAMP_FILE="/tmp/hibernate-confirm-stamp"
+TIMEOUT=5
+
+cleanup_stale() {
+    sleep "$TIMEOUT"
+    rm -f "$STAMP_FILE"
+}
+
+if [[ -f "$STAMP_FILE" ]]; then
+    first_press=$(cat "$STAMP_FILE")
+    now=$(date +%s)
+    if (( now - first_press <= TIMEOUT )); then
+        rm -f "$STAMP_FILE"
+        # Play a sleep-themed sound before hibernating.
+        canberra-gtk-play -i device-removed 2>/dev/null || true
+        sleep 0.4
+        systemctl hibernate
+    else
+        # Expired — restart the confirmation window.
+        date +%s > "$STAMP_FILE"
+        notify-send -t $((TIMEOUT * 1000)) -u critical \
+            "Hibernate" "Press Super+F7 again within ${TIMEOUT}s to confirm"
+        cleanup_stale &
+        disown
+    fi
+else
+    date +%s > "$STAMP_FILE"
+    notify-send -t $((TIMEOUT * 1000)) -u critical \
+        "Hibernate" "Press Super+F7 again within ${TIMEOUT}s to confirm"
+    cleanup_stale &
+    disown
+fi

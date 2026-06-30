@@ -57,8 +57,10 @@ bindsym XF86AudioNext exec --no-startup-id playerctl next
 
 exec --no-startup-id swaync
 exec --no-startup-id handy-sway-start
-exec_always --no-startup-id sh -lc 'pkill -x swayidle; swayidle -w timeout 600 "i3-lock"'
+exec --no-startup-id systemctl --user import-environment WAYLAND_DISPLAY XDG_CURRENT_DESKTOP
+exec_always --no-startup-id sh -lc 'pkill -x swayidle; swayidle -w timeout 600 "swaymsg seat * cursor hide; i3-lock" timeout 630 "swaymsg output * dpms off" resume "swaymsg output * dpms on"'
 
+exec_always --no-startup-id wlsunset -l -37.8 -L 145.0 -t 3000
 # repo-managed helpers, installed by home-manager
 set $term kitty-shade
 set $wmutil wmutil
@@ -100,6 +102,7 @@ bindsym Mod1+Shift+Tab exec --no-startup-id $i3_cycle_tab_sibling --reverse
 
 bindsym $mod+F5 exec --no-startup-id $audio_input_toggle
 bindsym $mod+F6 exec --no-startup-id $audio_toggle
+bindsym $mod+F8 exec --no-startup-id pkill -USR1 -x wlsunset
 bindsym $mod+F10 exec --no-startup-id pavucontrol
 # >>> i3-resurrect-bindings:start >>>
 bindsym $mod+Shift+F9 exec --no-startup-id $i3_save_default_workspaces
@@ -146,6 +149,8 @@ bindsym $mod+Shift+Mod1+s exec --no-startup-id sh -lc 'mkdir -p "$HOME/Pictures/
 
 # lock screen (Super+;)
 bindsym $mod+semicolon exec --no-startup-id $i3_lock_cmd
+# hibernation (Mod4+F7) — two-step confirm with notification + sound
+bindsym Mod4+F7 exec --no-startup-id hibernate-confirm
 
 # focus (vim)
 bindsym $mod+h focus left

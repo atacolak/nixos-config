@@ -106,6 +106,12 @@ let
     text = builtins.readFile ./scripts/i3-resurrect-restore-workspace-confirm;
   };
 
+  hibernateConfirm = pkgs.writeShellApplication {
+    name = "hibernate-confirm";
+    runtimeInputs = with pkgs; [ libnotify libcanberra-gtk3 ];
+    text = builtins.readFile ./scripts/hibernate-confirm;
+  };
+
 in
 {
   home.username = "sf";
@@ -151,12 +157,14 @@ in
     pulseaudio
     libnotify
     wl-clipboard
+    wlsunset
     grim
     slurp
     thunar
     blueman
     bluetui
     vscode
+    obsidian
 
     jetbrains-mono
     fira-code
@@ -179,6 +187,7 @@ in
     i3RestoreDefaultWorkspaces
     i3ResurrectSaveWorkspace
     i3ResurrectRestoreWorkspace
+    hibernateConfirm
   ];
 
   programs.bash.enable = true;
@@ -278,6 +287,7 @@ in
       "x-scheme-handler/https" = [ "firefox.desktop" ];
       "x-scheme-handler/about" = [ "firefox.desktop" ];
       "x-scheme-handler/unknown" = [ "firefox.desktop" ];
+      "x-scheme-handler/terminal" = [ "kitty.desktop" ];
       "text/html" = [ "firefox.desktop" ];
       "text/xml" = [ "firefox.desktop" ];
       "application/xhtml+xml" = [ "firefox.desktop" ];

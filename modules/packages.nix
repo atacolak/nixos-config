@@ -11,6 +11,7 @@
     tmux
     pciutils
     usbutils
+    mullvad
   ];
 
   programs.firefox.enable = true;

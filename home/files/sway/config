@@ -63,7 +63,7 @@ exec --no-startup-id handy-sway-start
 exec --no-startup-id systemctl --user import-environment WAYLAND_DISPLAY XDG_CURRENT_DESKTOP
 exec_always --no-startup-id sh -lc 'pkill -x swayidle; swayidle -w timeout 600 "swaymsg seat * cursor hide; i3-lock" timeout 630 "swaymsg output * dpms off" resume "swaymsg output * dpms on"'
 
-exec_always --no-startup-id wlsunset -l -37.8 -L 145.0 -t 3000
+exec_always --no-startup-id sh -c "pkill -x wlsunset; wlsunset -l -37.8 -L 145.0 -t 3000"
 exec_always --no-startup-id safeeyes
 # repo-managed helpers, installed by home-manager
 set $term kitty-shade

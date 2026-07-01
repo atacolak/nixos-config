@@ -21,6 +21,9 @@ for_window [app_id="^Code$"] border pixel 1
 # auto-float external viewers opened from file managers / xdg-open
 for_window [class="^(Zathura|Nsxiv|nsxiv|feh|mpv|imv|org\.gnome\.Evince|Evince|Eog)$"] floating enable
 for_window [app_id="^(org\.pwmt\.zathura|nsxiv|feh|mpv|imv|org\.gnome\.Evince|org\.gnome\.eog)$"] floating enable
+# handy transcription overlay: top-right so it does not cover the terminal
+for_window [class="Handy" title="Recording"] move position 1700 20, border none
+no_focus [class="Handy" title="Recording"]
 
 hide_edge_borders smart
 focus_on_window_activation smart

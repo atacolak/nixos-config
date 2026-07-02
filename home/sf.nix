@@ -157,6 +157,7 @@ in
     pulseaudio
     libnotify
     wl-clipboard
+    wtype
     wlsunset
     safeeyes
     grim

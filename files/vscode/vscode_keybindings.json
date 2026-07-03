@@ -1,0 +1,35 @@
+[
+  {
+    "command": "-workbench.view.explorer",
+    "key": "ctrl+shift+e",
+    "when": "viewContainer.workbench.view.explorer.enabled"
+  },
+  {
+    "command": "-workbench.action.showCommands",
+    "key": "f1"
+  },
+  {
+    "command": "workbench.action.toggleSidebarVisibility",
+    "key": "f1"
+  },
+  {
+    "command": "-workbench.action.toggleSidebarVisibility",
+    "key": "ctrl+b"
+  },
+  {
+    "command": "workbench.action.toggleAuxiliaryBar",
+    "key": "f2"
+  },
+  {
+    "command": "-workbench.action.toggleAuxiliaryBar",
+    "key": "ctrl+alt+b"
+  },
+  {
+    "command": "workbench.action.maximizeAuxiliaryBar",
+    "key": "f3"
+  },
+  {
+    "command": "workbench.action.restoreAuxiliaryBar",
+    "key": "f4"
+  }
+]

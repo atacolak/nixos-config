@@ -1,0 +1,18 @@
+{
+  "[csv]": {
+    "editor.inlayHints.maximumLength": 0
+  },
+  "chat.disableAIFeatures": true,
+  "editor.maxTokenizationLineLength": 50000,
+  "editor.wordWrap": "on",
+  "explorer.confirmDelete": false,
+  "explorer.confirmDragAndDrop": false,
+  "files.hotExit": "onExitAndWindowClose",
+  "json.format.keepLines": true,
+  "makefile.configureOnOpen": false,
+  "window.restoreFullscreen": true,
+  "window.restoreWindows": "all",
+  "workbench.colorTheme": "atacol",
+  "workbench.iconTheme": "One Dark Pro Night Flat Icons",
+  "workbench.startupEditor": "none"
+}

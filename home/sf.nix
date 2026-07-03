@@ -157,7 +157,6 @@ in
     pulseaudio
     libnotify
     wl-clipboard
-    xclip
     wtype
     wlsunset
     safeeyes
@@ -237,7 +236,6 @@ in
 
   home.shellAliases = {
     ata-herdr = "herdr --remote sf@ata-ubuntu";
-    xclip = "wl-copy";
   };
 
   home.sessionVariables = {

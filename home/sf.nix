@@ -1,4 +1,4 @@
-{ config, pkgs, ... }:
+{ config, pkgs, lib, ... }:
 
 let
   kittyShade = pkgs.writeShellApplication {
@@ -157,6 +157,7 @@ in
     pulseaudio
     libnotify
     wl-clipboard
+    xclip
     wtype
     wlsunset
     safeeyes
@@ -236,6 +237,7 @@ in
 
   home.shellAliases = {
     ata-herdr = "herdr --remote sf@ata-ubuntu";
+    xclip = "xclip -selection clipboard";
   };
 
   home.sessionVariables = {
@@ -368,9 +370,9 @@ in
     enable = true;
     package = pkgs.vscode;
 
-    mutableExtensionsDir = true;
 
-    extensions = with pkgs.vscode-extensions; [
+    profiles.default = {
+      extensions = with pkgs.vscode-extensions; [
       ms-python.python
       ms-python.vscode-pylance
       ms-python.debugpy
@@ -380,63 +382,17 @@ in
       mechatroner.rainbow-csv
       zhuangtongfa.material-theme
       ms-azuretools.vscode-containers
+      ms-vscode-remote.remote-ssh
     ];
 
-    userSettings = {
-      "workbench.colorTheme" = "atacol";
-      "workbench.iconTheme" = "One Dark Pro Night Flat Icons";
-      "workbench.startupEditor" = "none";
-      "window.restoreWindows" = "all";
-      "window.restoreFullscreen" = true;
-      "files.hotExit" = "onExitAndWindowClose";
-      "chat.disableAIFeatures" = true;
-      "explorer.confirmDelete" = false;
-      "explorer.confirmDragAndDrop" = false;
-      "editor.wordWrap" = "on";
-      "editor.maxTokenizationLineLength" = 50000;
-      "json.format.keepLines" = true;
-      "makefile.configureOnOpen" = false;
-      "[csv]" = {
-        "editor.inlayHints.maximumLength" = 0;
-      };
     };
-
-    keybindings = [
-      {
-        key = "ctrl+shift+e";
-        command = "-workbench.view.explorer";
-        when = "viewContainer.workbench.view.explorer.enabled";
-      }
-      {
-        key = "f1";
-        command = "-workbench.action.showCommands";
-      }
-      {
-        key = "f1";
-        command = "workbench.action.toggleSidebarVisibility";
-      }
-      {
-        key = "ctrl+b";
-        command = "-workbench.action.toggleSidebarVisibility";
-      }
-      {
-        key = "f2";
-        command = "workbench.action.toggleAuxiliaryBar";
-      }
-      {
-        key = "ctrl+alt+b";
-        command = "-workbench.action.toggleAuxiliaryBar";
-      }
-      {
-        key = "f3";
-        command = "workbench.action.maximizeAuxiliaryBar";
-      }
-      {
-        key = "f4";
-        command = "workbench.action.restoreAuxiliaryBar";
-      }
-    ];
   };
+  # Place VS Code settings/keybindings as one-time templates.
+  # They're only written if the target file doesn't exist yet,
+  # so user changes survive rebuilds.
+  home.activation.placeVscodeTemplates = lib.hm.dag.entryAfter [ "writeBoundary" ] (
+    "${pkgs.bash}/bin/bash ${../files/vscode/place-templates.sh} ${../files/vscode/vscode_settings.json} ${../files/vscode/vscode_keybindings.json}"
+  );
 
   # custom atacol theme (flexoki dark blue + vscode dark+ syntax)
   home.file = {

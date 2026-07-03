@@ -2,20 +2,20 @@
 
 let
   pname = "handy";
-  version = "0.8.3";
+  version = "0.9.0";
 
   src = requireFile {
-    name = "Handy_0.8.3_amd64.AppImage";
-    hash = "sha256-8rQJVpABydLXGlyLNIdw/cilAcmwvmAb93VoaJJ+KJQ=";
+    name = "Handy_0.9.0_amd64.AppImage";
+    hash = "sha256-8yoO2Ne+OzuNED9CSTeQ9RpksVpfP+K2riSnSW7Pawg=";
     message = ''
       Handy is distributed as a manually downloaded AppImage.
 
       Put the exact file in the Nix store with:
 
-        nix-store --add-fixed sha256 /home/sf/Downloads/Handy_0.8.3_amd64.AppImage
+        nix-store --add-fixed sha256 /home/sf/Downloads/Handy_0.9.0_amd64.AppImage
 
       Expected sha256:
-        sha256-8rQJVpABydLXGlyLNIdw/cilAcmwvmAb93VoaJJ+KJQ=
+        sha256-8yoO2Ne+OzuNED9CSTeQ9RpksVpfP+K2riSnSW7Pawg=
     '';
   };
 

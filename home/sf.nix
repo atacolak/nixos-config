@@ -237,7 +237,7 @@ in
 
   home.shellAliases = {
     ata-herdr = "herdr --remote sf@ata-ubuntu";
-    xclip = "xclip -selection clipboard";
+    xclip = "wl-copy";
   };
 
   home.sessionVariables = {

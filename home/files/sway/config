@@ -22,7 +22,7 @@ for_window [app_id="^Code$"] border pixel 1
 for_window [class="^(Zathura|Nsxiv|nsxiv|feh|mpv|imv|org\.gnome\.Evince|Evince|Eog)$"] floating enable
 for_window [app_id="^(org\.pwmt\.zathura|nsxiv|feh|mpv|imv|org\.gnome\.Evince|org\.gnome\.eog)$"] floating enable
 # handy transcription overlay: bottom-center, sticky across workspaces
-for_window [class="Handy" title="Recording"] move position center, move down 460 px, border none
+for_window [class="Handy" title="Recording"] move position center, move down 400 px, border none
 for_window [class="Handy" title="Recording"] sticky enable
 no_focus [class="Handy" title="Recording"]
 

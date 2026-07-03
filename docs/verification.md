@@ -86,6 +86,28 @@ echo "$HERDR_CONFIG_PATH"
 readlink ~/.config/herdr/config.toml
 ```
 
+## vs code
+
+```bash
+# extensions present
+ls ~/.vscode/extensions/ | wc -l
+cat ~/.vscode/extensions/.extensions-immutable.json | python3 -m json.tool | head -5 2>/dev/null || echo '(no python3, raw check)'
+
+# settings and keybindings are writable regular files (not symlinks)
+ls -la ~/.config/Code/User/settings.json ~/.config/Code/User/keybindings.json
+# expected: -rw-r--r-- (or -rw-------), NOT lrwxrwxrwx
+
+# atacol theme present
+ls ~/.vscode/extensions/local.atacol-0.0.1/
+
+# verify no stale mutable state
+[ ! -f ~/.vscode/extensions/.obsolete ] && echo 'no .obsolete — clean'
+[ ! -f ~/.vscode/extensions/extensions.json ] && echo 'no extensions.json — immutable mode active'
+
+# activation template script exists
+ls /home/sf/nixos-config/files/vscode/
+```
+
 ## git proof
 
 ```bash

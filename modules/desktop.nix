@@ -37,12 +37,6 @@ in
       sway-contrib.grimshot
       xwayland-satellite
     ];
-    extraConfig = ''
-      # handy transcription overlay: bottom-center, sticky across workspaces
-      for_window [class=\"Handy\" title="Recording"] move position center, move down 460 px, border none
-      for_window [class=\"Handy\" title="Recording"] sticky enable
-      no_focus [class=\"Handy\" title="Recording"]
-    '';
   };
 
   security.pam.services.swaylock = { };

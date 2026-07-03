@@ -73,6 +73,18 @@ home-manager owns important files under `~/.config`, including sway, kitty, fuzz
 
 manual ui edits may work temporarily, but they are not durable until represented in this repo.
 
+exception: vs code `settings.json` and `keybindings.json` are one-time templates — after initial placement, the user owns them and rebuilds do not overwrite (see `docs/decisions.md`).
+
+## vs code
+
+extensions are nix-managed. the extensions directory (`~/.vscode/extensions/`) contains symlinks to nix store paths.
+
+`mutableExtensionsDir` must stay OFF. turning it on causes vs code to ignore `.extensions-immutable.json` and mark all nix-managed extensions as removed.
+
+settings and keybindings are template-managed via `home.activation.placeVscodeTemplates` using `files/vscode/place-templates.sh`. do not use home-manager's `userSettings` or `keybindings` options — they create read-only symlinks that break vs code's ability to persist user changes.
+
+the atacol theme is placed via `home.file` into `~/.vscode/extensions/local.atacol-0.0.1/`.
+
 ## herdr
 
 package:

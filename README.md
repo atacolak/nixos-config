@@ -22,5 +22,13 @@ rough split:
 this repo should stay boring.
 boring means recoverable.
 
+## daily use
+
+**rebuild**: `sudo nixos-rebuild switch --flake /home/sf/nixos-config#laptop`
+
+**add a vs code extension**: edit `home/sf.nix` → rebuild → restart vs code.
+
+**change vs code settings**: just do it in vs code. templates are placed once, then you own them.
+
 for bluetooth management, use `bluetui`.
 to manage wifi, use `nmtui`.

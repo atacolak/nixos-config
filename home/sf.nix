@@ -364,6 +364,86 @@ in
   xdg.configFile."i3status-rust/config.toml".source = ./files/i3status-rust/config.toml;
   xdg.configFile."safeeyes/safeeyes.json".text = builtins.readFile ./files/safeeyes/safeeyes.json;
 
+  programs.vscode = {
+    enable = true;
+    package = pkgs.vscode;
+
+    mutableExtensionsDir = true;
+
+    extensions = with pkgs.vscode-extensions; [
+      ms-python.python
+      ms-python.vscode-pylance
+      ms-python.debugpy
+      ms-python.vscode-python-envs
+      ms-vscode.makefile-tools
+      ziglang.vscode-zig
+      mechatroner.rainbow-csv
+      zhuangtongfa.material-theme
+      ms-azuretools.vscode-containers
+    ];
+
+    userSettings = {
+      "workbench.colorTheme" = "atacol";
+      "workbench.iconTheme" = "One Dark Pro Night Flat Icons";
+      "workbench.startupEditor" = "none";
+      "window.restoreWindows" = "all";
+      "window.restoreFullscreen" = true;
+      "files.hotExit" = "onExitAndWindowClose";
+      "chat.disableAIFeatures" = true;
+      "explorer.confirmDelete" = false;
+      "explorer.confirmDragAndDrop" = false;
+      "editor.wordWrap" = "on";
+      "editor.maxTokenizationLineLength" = 50000;
+      "json.format.keepLines" = true;
+      "makefile.configureOnOpen" = false;
+      "[csv]" = {
+        "editor.inlayHints.maximumLength" = 0;
+      };
+    };
+
+    keybindings = [
+      {
+        key = "ctrl+shift+e";
+        command = "-workbench.view.explorer";
+        when = "viewContainer.workbench.view.explorer.enabled";
+      }
+      {
+        key = "f1";
+        command = "-workbench.action.showCommands";
+      }
+      {
+        key = "f1";
+        command = "workbench.action.toggleSidebarVisibility";
+      }
+      {
+        key = "ctrl+b";
+        command = "-workbench.action.toggleSidebarVisibility";
+      }
+      {
+        key = "f2";
+        command = "workbench.action.toggleAuxiliaryBar";
+      }
+      {
+        key = "ctrl+alt+b";
+        command = "-workbench.action.toggleAuxiliaryBar";
+      }
+      {
+        key = "f3";
+        command = "workbench.action.maximizeAuxiliaryBar";
+      }
+      {
+        key = "f4";
+        command = "workbench.action.restoreAuxiliaryBar";
+      }
+    ];
+  };
+
+  # custom atacol theme (flexoki dark blue + vscode dark+ syntax)
+  home.file = {
+    ".vscode/extensions/local.atacol-0.0.1/package.json".source = ./extensions/atacol/package.json;
+    ".vscode/extensions/local.atacol-0.0.1/themes/flexoki-dark-blue-dark-plus-color-theme.json".source = ./extensions/atacol/themes/flexoki-dark-blue-dark-plus-color-theme.json;
+  };
+
   dconf.settings = {
     "desktop/ibus/general/hotkey" = {
       triggers = "@as []";

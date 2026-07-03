@@ -5,7 +5,7 @@
 handy's self-positioning is broken on sway/wayland. its overlay_position setting is ignored.
 instead we hard-code the recording overlay position via sway's for_window rule.
 
-in ~/.config/sway/config:
+in modules/desktop.nix (programs.sway.extraConfig) — applied via nixos-rebuild switch:
 
     for_window [class="Handy" title="Recording"] move position center, move down 400 px, border none, sticky enable
     no_focus [class="Handy" title="Recording"]

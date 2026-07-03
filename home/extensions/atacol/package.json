@@ -1,0 +1,22 @@
+{
+  "name": "atacol",
+  "displayName": "atacol",
+  "description": "flexoki dark blue ui with vscode dark+ syntax colors.",
+  "version": "0.0.1",
+  "publisher": "local",
+  "engines": {
+    "vscode": "*"
+  },
+  "categories": [
+    "Themes"
+  ],
+  "contributes": {
+    "themes": [
+      {
+        "label": "atacol",
+        "uiTheme": "vs-dark",
+        "path": "./themes/flexoki-dark-blue-dark-plus-color-theme.json"
+      }
+    ]
+  }
+}

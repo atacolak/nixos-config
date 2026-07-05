@@ -159,7 +159,6 @@ in
     wl-clipboard
     wtype
     wlsunset
-    safeeyes
     grim
     slurp
     thunar
@@ -362,7 +361,6 @@ in
   xdg.configFile."sway/config".source = ./files/sway/config;
   xdg.configFile."sway/wallpaper.jpg".source = ./files/sway/wallpaper.jpg;
   xdg.configFile."i3status-rust/config.toml".source = ./files/i3status-rust/config.toml;
-  xdg.configFile."safeeyes/safeeyes.json".text = builtins.readFile ./files/safeeyes/safeeyes.json;
 
   programs.vscode = {
     enable = true;

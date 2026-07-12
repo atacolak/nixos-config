@@ -1,0 +1,219 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# ── configuration ───────────────────────────────────────────────
+DEFAULT_HOST="${RHTML_DEFAULT_HOST:-ata-ubuntu}"
+PORT="${RHTML_PORT:-18765}"
+PID_FILE="/tmp/rhtml-server.pid"
+LOG_FILE="/tmp/rhtml-server.log"
+STARTUP_TIMEOUT="${RHTML_STARTUP_TIMEOUT:-15}"
+
+# ── usage ───────────────────────────────────────────────────────
+usage() {
+    cat >&2 <<'EOF'
+Usage: rhtml [--stop [HOST]] [--print-url] <[HOST:]ABSOLUTE-PATH>
+
+Open a remote HTML file in your local browser via a throwaway HTTP server
+on the remote host. The server binds the host's Tailscale IPv4 address so
+assets referenced by relative path continue to work.
+
+Arguments:
+  HOST:PATH    Remote Tailscale host + absolute path to the HTML file
+  PATH         Absolute path; uses default host (ata-ubuntu)
+  --stop       Stop the remote rhtml server (opt: HOST overrides default)
+  --print-url  Print the URL instead of opening in a browser
+
+Examples:
+  rhtml ata-ubuntu:/home/sf/project/outputs/graph.html
+  rhtml /home/sf/project/outputs/graph.html
+  rhtml --stop
+  rhtml --stop my-other-box
+  rhtml --print-url webserver:/var/www/report.html
+EOF
+    exit 1
+}
+
+# ── helpers ─────────────────────────────────────────────────────
+ssh_no_ask() {
+    # Runs ssh with no interactive prompting — fails fast if auth isn't ready.
+    ssh -o ConnectTimeout=5 -o BatchMode=yes -o PasswordAuthentication=no "$@"
+}
+
+die() {
+    echo "rhtml: $*" >&2
+    exit 1
+}
+
+# ── argument parsing ────────────────────────────────────────────
+STOP=false
+PRINT_URL=false
+HOST=""
+REMOTE_PATH=""
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --)
+            shift
+            # Everything after -- is positional
+            for a in "$@"; do
+                if [[ "$a" == *:* && "${a%%:*}" != /* ]]; then
+                    HOST="${a%%:*}"
+                    REMOTE_PATH="${a#*:}"
+                else
+                    REMOTE_PATH="$a"
+                fi
+            done
+            set --
+            ;;
+        --stop)
+            STOP=true
+            shift
+            if [[ $# -gt 0 && ! "$1" =~ ^- ]]; then
+                HOST="$1"
+                shift
+            fi
+            ;;
+        --print-url)
+            PRINT_URL=true
+            shift
+            ;;
+        --help|-h)
+            usage
+            ;;
+        --*)
+            die "unknown option: $1"
+            ;;
+        -*)
+            die "unknown option: $1"
+            ;;
+        *)
+            # Only split on colon if the left side looks like a hostname
+            # (doesn't start with /) — avoids misinterpreting paths with colons.
+            if [[ "$1" == *:* && "${1%%:*}" != /* ]]; then
+                HOST="${1%%:*}"
+                REMOTE_PATH="${1#*:}"
+            else
+                REMOTE_PATH="$1"
+            fi
+            shift
+            ;;
+    esac
+done
+
+HOST="${HOST:-$DEFAULT_HOST}"
+
+# ── stop mode ───────────────────────────────────────────────────
+if $STOP; then
+    echo "rhtml: stopping server on $HOST …" >&2
+    ssh_no_ask "$HOST" bash -s -- "$PID_FILE" 2>/dev/null <<'STOPSCRIPT' || die "cannot reach $HOST via SSH"
+        pid_file="$1"
+        if [[ -f "$pid_file" ]]; then
+            pid=$(cat "$pid_file")
+            if kill -0 "$pid" 2>/dev/null; then
+                kill "$pid" 2>/dev/null || true
+                echo "rhtml: stopped server (pid $pid)" >&2
+            else
+                echo "rhtml: server not running (stale pid file)" >&2
+            fi
+            rm -f "$pid_file"
+        else
+            echo "rhtml: no server running" >&2
+        fi
+STOPSCRIPT
+    exit 0
+fi
+
+# ── normal mode ─────────────────────────────────────────────────
+if [[ -z "$REMOTE_PATH" ]]; then
+    die "missing path argument"
+fi
+
+if [[ "$REMOTE_PATH" != /* ]]; then
+    die "path must be absolute: $REMOTE_PATH"
+fi
+
+# SSH pre-flight
+ssh_no_ask "$HOST" true 2>/dev/null || die "cannot connect to $HOST via SSH (is tailscale up?)"
+
+# Derive the remote Tailscale IPv4 address (server binds here for safety)
+REMOTE_IP=$(ssh_no_ask "$HOST" 'tailscale ip -4' 2>/dev/null) \
+    || die "failed to get Tailscale IPv4 address on $HOST"
+[[ -n "$REMOTE_IP" ]] || die "$HOST has no Tailscale IPv4 address"
+
+# Check that the remote file exists (safe: passed as argument, not interpolated)
+ssh_no_ask "$HOST" bash -s -- "$REMOTE_PATH" <<'CHECKSCRIPT' \
+    || die "remote file not found: $REMOTE_PATH"
+        test -f "$1"
+CHECKSCRIPT
+
+# Check python3 on remote
+ssh_no_ask "$HOST" 'command -v python3 >/dev/null 2>&1' \
+    || die "python3 not found on $HOST — is Python 3 installed?"
+
+REMOTE_DIR="$(dirname "$REMOTE_PATH")"
+FILENAME="$(basename "$REMOTE_PATH")"
+
+# URL-encode the filename (local python3; guaranteed by the nix derivation)
+ENCODED_FILENAME=$(python3 -c \
+    'import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1]))' \
+    "$FILENAME")
+URL="http://${HOST}:${PORT}/${ENCODED_FILENAME}"
+
+# ── start / replace the remote server ───────────────────────────
+echo "rhtml: starting HTTP server on $HOST (port $PORT) …" >&2
+
+ssh_no_ask "$HOST" bash -s -- \
+    "$PID_FILE" "$LOG_FILE" "$REMOTE_DIR" "$PORT" "$REMOTE_IP" <<'SERVBSCRIPT' \
+    || die "failed to start server on $HOST"
+        pid_file="$1"
+        log_file="$2"
+        remote_dir="$3"
+        port="$4"
+        remote_ip="$5"
+
+        # Kill any existing rhtml server tracked by pid file
+        if [[ -f "$pid_file" ]]; then
+            old_pid=$(cat "$pid_file")
+            if kill -0 "$old_pid" 2>/dev/null; then
+                kill "$old_pid" 2>/dev/null || true
+                sleep 0.3
+            fi
+            rm -f "$pid_file"
+        fi
+
+        # Belt-and-suspenders: kill anything already on the port
+        fuser -k "$port/tcp" 2>/dev/null || true
+        sleep 0.2
+
+        # Start the server detached
+        cd "$remote_dir" || exit 1
+        nohup python3 -m http.server "$port" --bind "$remote_ip" \
+            >"$log_file" 2>&1 &
+        server_pid=$!
+        echo "$server_pid" > "$pid_file"
+        echo "rhtml: server started (pid $server_pid)" >&2
+SERVBSCRIPT
+
+# ── wait for server to be reachable ─────────────────────────────
+start_ts=$(date +%s)
+while true; do
+    code=$(curl -s -o /dev/null -w '%{http_code}' \
+        --connect-timeout 2 --max-time 3 \
+        "http://${HOST}:${PORT}/" 2>/dev/null || true)
+    if [[ "$code" =~ ^[23] ]]; then
+        break
+    fi
+    elapsed=$(($(date +%s) - start_ts))
+    if [[ $elapsed -ge $STARTUP_TIMEOUT ]]; then
+        die "server did not become reachable within ${STARTUP_TIMEOUT}s"
+    fi
+    sleep 0.5
+done
+
+# ── deliver ─────────────────────────────────────────────────────
+if $PRINT_URL; then
+    echo "$URL"
+else
+    echo "rhtml: opening $URL" >&2
+    xdg-open "$URL"
+fi

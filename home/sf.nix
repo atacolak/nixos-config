@@ -112,6 +112,12 @@ let
     text = builtins.readFile ./scripts/hibernate-confirm;
   };
 
+  # serve a remote html file over tailscale — starts an ephemeral http server on the remote host
+  rhtml = pkgs.writeShellApplication {
+    name = "rhtml";
+    runtimeInputs = with pkgs; [ openssh curl xdg-utils python3 ];
+    text = builtins.readFile ./scripts/rhtml;
+  };
 in
 {
   home.username = "sf";
@@ -133,6 +139,13 @@ in
     btop
     jq
     unzip
+    ffmpeg
+    yt-dlp
+    mpv
+    cava
+    unzip
+    zip
+    _7zz
 
     kitty
     fuzzel
@@ -189,6 +202,7 @@ in
     i3ResurrectSaveWorkspace
     i3ResurrectRestoreWorkspace
     hibernateConfirm
+    rhtml
   ];
 
   programs.bash.enable = true;

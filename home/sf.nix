@@ -249,6 +249,9 @@ in
 
   home.shellAliases = {
     ata-herdr = "herdr --remote sf@ata-ubuntu";
+    # clipboard sync over tailscale — push/pull between sfnix and ata-ubuntu
+    clip-push = "wl-paste | ssh ata-ubuntu \"DISPLAY=:1 xclip -i -selection clipboard\"";
+    clip-pull = "ssh ata-ubuntu \"DISPLAY=:1 xclip -o -selection clipboard 2>/dev/null\" | wl-copy";
   };
 
   home.sessionVariables = {

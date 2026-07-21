@@ -60,7 +60,7 @@ bindsym XF86AudioPlay exec --no-startup-id playerctl play-pause
 bindsym XF86AudioNext exec --no-startup-id playerctl next
 
 exec --no-startup-id swaync
-# DISABLED: exec --no-startup-id handy-sway-start
+exec --no-startup-id handy-sway-start
 exec --no-startup-id systemctl --user import-environment WAYLAND_DISPLAY XDG_CURRENT_DESKTOP
 exec_always --no-startup-id sh -lc 'pkill -x swayidle; swayidle -w timeout 600 "swaymsg seat seat0 hide_cursor 600000; i3-lock" timeout 630 "swaymsg output * dpms off" resume "swaymsg output * dpms on"'
 
@@ -90,8 +90,8 @@ bindsym $mod+Shift+q exec --no-startup-id $wmutil kill-class
 
 # handy's own tauri shortcut only works while the handy window is focused under sway.
 # bind it at the compositor layer instead so it is genuinely global.
-# DISABLED: bindsym --no-repeat Control+space exec --no-startup-id handy --toggle-transcription
-# DISABLED: bindsym --no-repeat Control+Shift+space exec --no-startup-id handy --toggle-post-process
+bindsym --no-repeat Control+space exec --no-startup-id handy --toggle-transcription
+bindsym --no-repeat Control+Shift+space exec --no-startup-id handy --toggle-post-process
 
 # app binds
 bindsym $mod+f exec --no-startup-id $wmutil cycle-or-run --class firefox --scope current --launch $firefox_session --new-window

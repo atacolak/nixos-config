@@ -19,11 +19,11 @@ in
       NS="vpn-sg"
       CONF="${wgConf}"
 
-      # Parse WireGuard config (handle both = and = with leading space)
-      PRIVKEY=$(awk -F' *= *' '/^PrivateKey/ {print $2}' "$CONF")
-      PUBKEY=$(awk -F' *= *' '/^PublicKey/ {print $2}' "$CONF")
-      ENDPOINT=$(awk -F' *= *' '/^Endpoint/ {print $2}' "$CONF")
-      ADDRS=$(awk -F' *= *' '/^Address/ {print $2}' "$CONF")
+      # Parse WireGuard config (sub() to preserve trailing = in key)
+      PRIVKEY=$(awk '/^PrivateKey/ {sub(/^PrivateKey *= */, ""); print}' "$CONF")
+      PUBKEY=$(awk '/^PublicKey/ {sub(/^PublicKey *= */, ""); print}' "$CONF")
+      ENDPOINT=$(awk '/^Endpoint/ {sub(/^Endpoint *= */, ""); print}' "$CONF")
+      ADDRS=$(awk '/^Address/ {sub(/^Address *= */, ""); print}' "$CONF")
 
       ip netns del "$NS" 2>/dev/null || true
       ip netns add "$NS"

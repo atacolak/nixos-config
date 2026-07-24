@@ -32,7 +32,7 @@ in
       ip link set wg-sg netns "$NS"
 
       # Configure WireGuard (low-level wg, not wg-quick)
-      echo "$PRIVKEY" | ip netns exec "$NS" wg set wg-sg private-key /dev/stdin
+      printf '%s' "$PRIVKEY" | ip netns exec "$NS" wg set wg-sg private-key /dev/stdin
       ip netns exec "$NS" wg set wg-sg peer "$PUBKEY" \
         endpoint "$ENDPOINT" \
         allowed-ips 0.0.0.0/0,::0/0

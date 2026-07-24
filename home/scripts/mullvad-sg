@@ -9,5 +9,11 @@ exec /run/wrappers/bin/sudo ip netns exec vpn-sg bash -c '
   export XDG_RUNTIME_DIR="$4"
   export DBUS_SESSION_BUS_ADDRESS="$5"
   shift 5
-  exec mullvad-browser "$@"
+  exec sudo -u sf env \
+    HOME="$HOME" \
+    USER="$USER" \
+    WAYLAND_DISPLAY="$WAYLAND_DISPLAY" \
+    XDG_RUNTIME_DIR="$XDG_RUNTIME_DIR" \
+    DBUS_SESSION_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS" \
+    mullvad-browser "$@"
 ' -- "$HOME" "$USER" "$WAYLAND_DISPLAY" "$XDG_RUNTIME_DIR" "${DBUS_SESSION_BUS_ADDRESS:-}" "$@"

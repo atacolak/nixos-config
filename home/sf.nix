@@ -194,6 +194,7 @@ in
     swayI3Lock
     firefoxSession
     ungoogled-chromium
+    mullvad-browser
     i3CycleTabSibling
     i3SpawnHere
     i3TreePath

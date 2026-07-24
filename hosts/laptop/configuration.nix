@@ -12,6 +12,7 @@
     ../../modules/nix.nix
     ../../modules/packages.nix
     ../../modules/power.nix
+    ../../modules/vpn-netns.nix
   ];
 
   boot.loader.systemd-boot.enable = true;

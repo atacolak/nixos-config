@@ -118,6 +118,12 @@ let
     runtimeInputs = with pkgs; [ openssh curl xdg-utils python3 ];
     text = builtins.readFile ./scripts/rhtml;
   };
+  # launch mullvad-browser through Singapore WireGuard tunnel (netns isolation)
+  mullvadSg = pkgs.writeShellApplication {
+    name = "mullvad-sg";
+    runtimeInputs = with pkgs; [ iproute2 ];
+    text = builtins.readFile ./scripts/mullvad-sg;
+  };
 in
 {
   home.username = "sf";
@@ -194,6 +200,7 @@ in
     swayI3Lock
     firefoxSession
     ungoogled-chromium
+    wireguard-tools
     mullvad-browser
     i3CycleTabSibling
     i3SpawnHere
@@ -205,6 +212,7 @@ in
     i3ResurrectRestoreWorkspace
     hibernateConfirm
     rhtml
+    mullvadSg
   ];
 
   programs.bash.enable = true;

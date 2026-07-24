@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Launch Mullvad Browser through Singapore WireGuard tunnel (netns isolation).
+# Only this browser sees the VPN — Tailscale, Firefox, etc are untouched.
+
+exec /run/wrappers/bin/sudo ip netns exec vpn-sg bash -c '
+  export HOME="$1"
+  export USER="$2"
+  export WAYLAND_DISPLAY="$3"
+  export XDG_RUNTIME_DIR="$4"
+  export DBUS_SESSION_BUS_ADDRESS="$5"
+  shift 5
+  exec mullvad-browser "$@"
+' -- "$HOME" "$USER" "$WAYLAND_DISPLAY" "$XDG_RUNTIME_DIR" "${DBUS_SESSION_BUS_ADDRESS:-}" "$@"

@@ -193,6 +193,7 @@ in
     swayI3Msg
     swayI3Lock
     firefoxSession
+    ungoogled-chromium
     i3CycleTabSibling
     i3SpawnHere
     i3TreePath

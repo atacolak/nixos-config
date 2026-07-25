@@ -202,6 +202,7 @@ in
     ungoogled-chromium
     wireguard-tools
     nwg-displays
+    foliate
     mullvad-browser
     i3CycleTabSibling
     i3SpawnHere

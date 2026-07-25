@@ -83,7 +83,7 @@ set $i3_resurrect_restore_ws i3-resurrect-restore-workspace-confirm
 # terminal / launcher
 bindsym $mod+Return exec --no-startup-id $term
 bindsym $mod+shift+z exec --no-startup-id task-terminal main
-bindsym $mod+space exec --no-startup-id fuzzel
+bindsym $mod+space exec --no-startup-id fuzzel --output=eDP-1
 bindsym $mod+q exec --no-startup-id sway-kill-clean
 bindsym $mod+n exec --no-startup-id swaync-client --toggle-panel
 bindsym $mod+Shift+q exec --no-startup-id $wmutil kill-class

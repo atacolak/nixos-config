@@ -202,7 +202,7 @@ in
     ungoogled-chromium
     wireguard-tools
     nwg-displays
-    koreader
+    calibre
     mullvad-browser
     i3CycleTabSibling
     i3SpawnHere

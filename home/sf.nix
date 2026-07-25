@@ -274,6 +274,7 @@ in
     BROWSER = "firefox";
     XDG_CURRENT_DESKTOP = "sway";
     XDG_SESSION_DESKTOP = "sway";
+    PI_OFFLINE = "1";
     GTK_THEME = "Adwaita:dark";
   };
 

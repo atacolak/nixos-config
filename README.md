@@ -32,3 +32,26 @@ boring means recoverable.
 
 for bluetooth management, use `bluetui`.
 to manage wifi, use `nmtui`.
+## commands
+
+`rhtml` — serve a remote html file over tailscale. `rhtml host:path` or `rhtml path` (uses default host). `rhtml --stop` to kill the server.
+
+`clip-push` — copy sfnix clipboard to ata-ubuntu. `clip-pull` — copy ata-ubuntu clipboard to sfnix.
+
+`mullvad-sg` — launch mullvad-browser through Singapore WireGuard tunnel. only that browser sees the vpn; tailscale/firefox/everything else stays on normal connection. needs `sudo systemctl start vpn-netns` once after boot.
+
+`nwg-displays` — gui for managing sway outputs (position, resolution, enable/disable). for ar glasses or second screen.
+
+`calibre` — ebook library manager. `ebook-viewer` for quick reading. oled: preferences → dark mode + margin controls.
+
+`fuzzel` — app launcher. `$mod+space`. pinned to laptop screen only (won't open on glasses).
+
+`bluetui` — bluetooth. `nmtui` — wifi.
+
+## env
+
+`PI_OFFLINE=1` is set in sessionVariables.
+
+## rebuild
+
+`sudo nixos-rebuild switch --flake ~/nixos-config#laptop`

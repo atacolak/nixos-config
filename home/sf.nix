@@ -201,6 +201,7 @@ in
     firefoxSession
     ungoogled-chromium
     wireguard-tools
+    nwg-displays
     mullvad-browser
     i3CycleTabSibling
     i3SpawnHere

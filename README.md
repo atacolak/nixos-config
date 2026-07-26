@@ -55,3 +55,9 @@ to manage wifi, use `nmtui`.
 ## rebuild
 
 `sudo nixos-rebuild switch --flake ~/nixos-config#laptop`
+## misc
+
+`wl-copy < file` — pipe a file's content into the clipboard.
+`wl-paste > file` — dump clipboard to a file.
+
+`cp src dst` — copy files. `cp -r` for directories.

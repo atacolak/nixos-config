@@ -1,9 +1,9 @@
 { pkgs, ... }:
 
 let
-  internalBluetoothAddress = "F4:6A:DD:26:38:42";
+  csrDongleAddress = "00:1A:7D:DA:71:13";
 
-  disableInternalBluetooth = pkgs.writeShellScript "disable-internal-realtek-bluetooth" ''
+  disableCsrDongle = pkgs.writeShellScript "disable-csr-bluetooth-dongle" ''
     for hci_path in /sys/class/bluetooth/hci*; do
       [ -e "$hci_path" ] || continue
       hci_name="$(basename "$hci_path")"
@@ -15,16 +15,16 @@ let
         address="$(${pkgs.bluez}/bin/hciconfig "$hci_name" 2>/dev/null | ${pkgs.gawk}/bin/awk '/BD Address:/ { print $3; exit }')"
       fi
 
-      if [ "$address" = "${internalBluetoothAddress}" ]; then
+      if [ "$address" = "${csrDongleAddress}" ]; then
         ${pkgs.bluez}/bin/hciconfig "$hci_name" down || true
       fi
     done
   '';
 in
 {
-  # The laptop has a Realtek RTL8821CE wifi/bt combo chip. Its bluetooth side
-  # repeatedly failed AirPods A2DP setup while the wifi driver spammed firmware
-  # errors. Prefer the USB bluetooth dongle and keep the internal controller down.
+  # The CSR USB bluetooth dongle is flaky (constant HCI command timeouts).
+  # Keep it disabled and use the internal Realtek RTL8821CE bluetooth instead.
+  
   networking.networkmanager.wifi.powersave = false;
 
   hardware.bluetooth = {
@@ -41,14 +41,14 @@ in
   '';
 
   # Also run the disable hook whenever BlueZ starts or restarts. Without this,
-  # restarting bluetooth can bring the internal Realtek controller back up while
+  # restarting bluetooth can bring the CSR dongle back up while
   # the oneshot below still looks "active (exited)" to systemd.
   systemd.services.bluetooth.postStart = ''
-    ${disableInternalBluetooth}
+    ${disableCsrDongle}
   '';
 
-  systemd.services.disable-internal-realtek-bluetooth = {
-    description = "Disable flaky internal Realtek bluetooth controller";
+  systemd.services.disable-csr-bluetooth-dongle = {
+    description = "Disable flaky CSR USB bluetooth dongle";
     after = [ "bluetooth.service" ];
     wantedBy = [ "multi-user.target" ];
 
@@ -58,11 +58,11 @@ in
     };
 
     script = ''
-      ${disableInternalBluetooth}
+      ${disableCsrDongle}
     '';
   };
 
   powerManagement.resumeCommands = ''
-    ${disableInternalBluetooth}
+    ${disableCsrDongle}
   '';
 }

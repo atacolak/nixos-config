@@ -68,7 +68,7 @@ bindsym XF86AudioNext exec --no-startup-id playerctl next
 exec --no-startup-id swaync
 exec --no-startup-id handy-sway-start
 exec --no-startup-id systemctl --user import-environment WAYLAND_DISPLAY XDG_CURRENT_DESKTOP
-exec_always --no-startup-id sh -lc 'pkill -x swayidle; swayidle -w timeout 600 "swaymsg seat seat0 hide_cursor 1000; i3-lock" timeout 630 "swaymsg output * dpms off" resume "swaymsg output * dpms on"'
+exec_always --no-startup-id sh -lc 'pkill -x swayidle; swayidle -w timeout 600 "swaymsg seat seat0 hide_cursor 1000; pgrep -x swaylock && exit 0; i3-lock" timeout 630 "swaymsg output * dpms off" resume "swaymsg output * dpms on"'
 
 exec_always --no-startup-id sh -c "pkill -x wlsunset; wlsunset -l -37.8 -L 145.0 -t 3000"
 # repo-managed helpers, installed by home-manager

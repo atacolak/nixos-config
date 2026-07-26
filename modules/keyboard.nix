@@ -23,7 +23,7 @@
         )
 
         (defalias
-          capdance (multi-tap 300 lmet caps)
+          capdance (tap-next-release 300 caps lmet)
         )
 
         (deflayer base

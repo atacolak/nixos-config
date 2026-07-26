@@ -52,6 +52,12 @@ input type:touchpad {
     natural_scroll enabled
 }
 
+# --- reduced mouse sensitivity (external), touchpad unchanged ---
+input type:pointer {
+    accel_profile flat
+    pointer_accel -0.33
+}
+
 seat * xcursor_theme Bibata-Modern-Ice 24
 
 # --- media keys (mpris) ---

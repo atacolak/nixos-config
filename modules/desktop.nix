@@ -79,4 +79,8 @@ in
 
   security.polkit.enable = true;
   services.gnome.gnome-keyring.enable = true;
+
+  # Thunar needs exo-open for "Open Terminal Here" and for launching
+  # Terminal=true .desktop apps (vim, etc.).
+  environment.systemPackages = [ pkgs.xfce.exo ];
 }

@@ -324,14 +324,31 @@ in
       "application/xhtml+xml" = [ "firefox.desktop" ];
       "application/xml" = [ "firefox.desktop" ];
       "application/pdf" = [ "firefox.desktop" ];
+
+      "text/plain" = [ "vim.desktop" ];
+      "text/x-markdown" = [ "vim.desktop" ];
+      "text/x-csrc" = [ "vim.desktop" ];
+      "text/x-c++src" = [ "vim.desktop" ];
+      "text/x-python" = [ "vim.desktop" ];
+      "text/x-sh" = [ "vim.desktop" ];
+      "application/x-shellscript" = [ "vim.desktop" ];
+      "application/json" = [ "vim.desktop" ];
     };
     associations.added = {
       "inode/directory" = [ "thunar.desktop" ];
       "x-scheme-handler/http" = [ "firefox.desktop" ];
       "x-scheme-handler/https" = [ "firefox.desktop" ];
       "text/html" = [ "firefox.desktop" ];
+
+      "text/plain" = [ "vim.desktop" ];
+      "text/x-markdown" = [ "vim.desktop" ];
+      "text/x-csrc" = [ "vim.desktop" ];
+      "text/x-c++src" = [ "vim.desktop" ];
+      "application/x-shellscript" = [ "vim.desktop" ];
     };
   };
+  xdg.configFile."xfce4/helpers.rc".text = "TerminalEmulator=kitty
+";
 
   xdg.configFile."herdr/config.toml".text = ''
     onboarding = false

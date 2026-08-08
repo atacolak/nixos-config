@@ -137,27 +137,28 @@ use these before editing common areas:
 
 ## bluetooth warning
 
-this laptop has a broken-ish internal realtek bluetooth/wifi combo chip.
-airpods failed on the internal controller and worked on the usb csr dongle.
+airpods audio is load-bearing. adapter policy and bluez flags must stay aligned.
 
-`modules/bluetooth.nix` intentionally disables the internal controller with address:
-
-```text
-F4:6A:DD:26:38:42
-```
-
-and leaves the usb dongle controller available:
+intended state:
 
 ```text
-00:1A:7D:DA:71:13
+CSR USB dongle UP:     00:1A:7D:DA:71:13   (AirPods audio)
+Realtek internal DOWN: F4:6A:DD:26:38:42
+bluetoothd:            -P headset          (HFP off)
+AirPods MAC:           2C:32:6A:C1:8D:00
+helper:                airpods-fix
 ```
 
-do not remove this unless you are intentionally retesting bluetooth hardware. if changing it, read:
+`Connected: yes` without a PipeWire sink / MediaTransport is failure (usually bad bond Type=0 or no encryption).
+
+do not invert adapter policy or drop `-P headset` as cleanup. if changing bluetooth, read:
 
 ```text
 docs/runbooks/bluetooth.md
 docs/known-constraints.md
 ```
+
+and verify with `airpods-fix --status` after rebuild.
 
 ## herdr
 

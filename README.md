@@ -31,6 +31,7 @@ boring means recoverable.
 **change vs code settings**: just do it in vs code. templates are placed once, then you own them.
 
 for bluetooth management, use `bluetui`.
+AirPods recovery: `airpods-fix` (see `docs/runbooks/bluetooth.md`).
 to manage wifi, use `nmtui`.
 ## commands
 

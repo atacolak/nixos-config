@@ -124,6 +124,13 @@ let
     runtimeInputs = with pkgs; [ iproute2 ];
     text = builtins.readFile ./scripts/mullvad-sg;
   };
+
+  # recover AirPods A2DP on CSR without thrashing (see docs/runbooks/bluetooth.md)
+  airpodsFix = pkgs.writeShellApplication {
+    name = "airpods-fix";
+    runtimeInputs = with pkgs; [ bluez bluez-tools wireplumber pulseaudio dbus systemd coreutils gnugrep gnused gawk ];
+    text = builtins.readFile ./scripts/airpods-fix;
+  };
 in
 {
   home.username = "sf";
@@ -215,6 +222,7 @@ in
     hibernateConfirm
     rhtml
     mullvadSg
+    airpodsFix
   ];
 
   programs.bash.enable = true;

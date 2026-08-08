@@ -65,18 +65,22 @@ journalctl -b -u kmonad-internal.service --no-pager | tail -80
 ## bluetooth and audio
 
 ```bash
+airpods-fix --status
 bluetoothctl list
 hciconfig -a
 wpctl status
 systemctl --no-pager status bluetooth
+tr '\0' ' ' < /proc/$(pgrep -n bluetoothd)/cmdline; echo
 journalctl -b -u bluetooth --since '10 min ago' --no-pager
 ```
 
 expected broad shape:
 
-- internal realtek controller is down/disabled
-- csr dongle is available
-- bluetooth audio devices should appear in `wpctl status` only after bluez/pipewire have a real transport
+- CSR dongle `00:1A:7D:DA:71:13` powered/up
+- internal Realtek `F4:6A:DD:26:38:42` down/disabled
+- bluetoothd cmdline contains `-P headset`
+- AirPods success = Connected + AUTH ENCRYPT + MediaTransport + wpctl sink (not Connected alone)
+- recovery: `airpods-fix` / `airpods-fix --pair` (see `docs/runbooks/bluetooth.md`)
 
 ## herdr
 

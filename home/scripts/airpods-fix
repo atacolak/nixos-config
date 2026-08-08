@@ -1,0 +1,332 @@
+#!/usr/bin/env bash
+# airpods-fix — recover AirPods A2DP on sfnix without thrashing.
+#
+# Load-bearing facts (do not "simplify" without retesting):
+# - Prefer CSR dongle 00:1A:7D:DA:71:13 for AirPods audio.
+# - Internal Realtek F4:6A:DD:26:38:42 is unreliable for A2DP.
+# - bluetoothd must run with -P headset (HFP off) or AVDTP races.
+# - Connected: yes without MediaTransport / wpctl sink is NOT success.
+# - Good bond: LinkKey Type=4 (or 7). Type=0 = junk, re-pair.
+# - Encryption must complete (hci: AUTH ENCRYPT). AUTH alone = no audio.
+#
+# Usage:
+#   airpods-fix              # soft reconnect + set default sink
+#   airpods-fix --status     # diagnose only
+#   airpods-fix --pair       # full pair (buds must be white-flashing in case)
+#   airpods-fix --reset-bt   # restart bluetoothd + wireplumber, then soft connect
+#
+# Pairing timing:
+#   1) buds in case, lid open, white flashing
+#   2) airpods-fix --pair
+#   3) when script says "in ears now", put buds in ears
+#   4) script finishes connect + default sink
+
+set -euo pipefail
+
+AIRPODS_MAC="${AIRPODS_MAC:-2C:32:6A:C1:8D:00}"
+CSR_ADDR="${CSR_ADDR:-00:1A:7D:DA:71:13}"
+REALTEK_ADDR="${REALTEK_ADDR:-F4:6A:DD:26:38:42}"
+A2DP_UUID="0000110b-0000-1000-8000-00805f9b34fb"
+
+export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+export DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-unix:path=${XDG_RUNTIME_DIR}/bus}"
+
+MODE="soft"
+case "${1:-}" in
+  "" ) MODE="soft" ;;
+  --status|-s) MODE="status" ;;
+  --pair|-p) MODE="pair" ;;
+  --reset-bt|-r) MODE="reset" ;;
+  -h|--help)
+    sed -n '2,30p' "$0"
+    exit 0
+    ;;
+  *)
+    echo "unknown arg: $1 (try --help)" >&2
+    exit 2
+    ;;
+esac
+
+log() { printf '>> %s\n' "$*"; }
+die() { printf '!! %s\n' "$*" >&2; exit 1; }
+
+need() {
+  command -v "$1" >/dev/null 2>&1 || die "missing command: $1"
+}
+
+need bluetoothctl
+need wpctl
+need busctl
+
+mac_path() {
+  # bluez object path uses underscores
+  echo "$AIRPODS_MAC" | tr ':' '_'
+}
+
+hci_for_mac() {
+  # Prefer path that exists on dbus
+  local m
+  m="$(mac_path)"
+  if busctl get-property org.bluez "/org/bluez/hci0/dev_${m}" org.bluez.Device1 Address >/dev/null 2>&1; then
+    echo hci0
+  elif busctl get-property org.bluez "/org/bluez/hci1/dev_${m}" org.bluez.Device1 Address >/dev/null 2>&1; then
+    echo hci1
+  else
+    # default guess: CSR is often hci1 when both present, but path varies
+    echo hci0
+  fi
+}
+
+dev_path() {
+  echo "/org/bluez/$(hci_for_mac)/dev_$(mac_path)"
+}
+
+controllers() {
+  bluetoothctl list 2>/dev/null || true
+}
+
+show_adapter_power() {
+  local c
+  while read -r _ c _; do
+    [ -n "${c:-}" ] || continue
+    printf '  %s: ' "$c"
+    bluetoothctl show "$c" 2>/dev/null | awk -F': ' '/Powered:/{p=$2} /Alias:/{a=$2} END{print a, "Powered="p}'
+  done < <(bluetoothctl list 2>/dev/null)
+}
+
+bond_info() {
+  # needs root for /var/lib/bluetooth; best-effort
+  if [ -r "/var/lib/bluetooth/${CSR_ADDR}/${AIRPODS_MAC}/info" ]; then
+    echo "bond@CSR:"
+    grep -E '^(Name|Trusted|Key|Type)=' "/var/lib/bluetooth/${CSR_ADDR}/${AIRPODS_MAC}/info" 2>/dev/null || true
+  fi
+  if [ -r "/var/lib/bluetooth/${REALTEK_ADDR}/${AIRPODS_MAC}/info" ]; then
+    echo "bond@Realtek:"
+    grep -E '^(Name|Trusted|Key|Type)=' "/var/lib/bluetooth/${REALTEK_ADDR}/${AIRPODS_MAC}/info" 2>/dev/null || true
+  fi
+  if [ "$(id -u)" -ne 0 ]; then
+    # try sudo non-interactive
+    if command -v sudo >/dev/null 2>&1; then
+      sudo -n cat "/var/lib/bluetooth/${CSR_ADDR}/${AIRPODS_MAC}/info" 2>/dev/null | grep -E '^(Name|Trusted|Key|Type)=' | sed 's/^/bond@CSR: /' || true
+      sudo -n cat "/var/lib/bluetooth/${REALTEK_ADDR}/${AIRPODS_MAC}/info" 2>/dev/null | grep -E '^(Name|Trusted|Key|Type)=' | sed 's/^/bond@Realtek: /' || true
+    fi
+  fi
+}
+
+transport_count() {
+  dbus-send --system --print-reply --dest=org.bluez / org.freedesktop.DBus.ObjectManager.GetManagedObjects 2>/dev/null \
+    | grep -c MediaTransport1 || true
+}
+
+endpoint_count() {
+  dbus-send --system --print-reply --dest=org.bluez / org.freedesktop.DBus.ObjectManager.GetManagedObjects 2>/dev/null \
+    | grep -c MediaEndpoint || true
+}
+
+device_props() {
+  local p
+  p="$(dev_path)"
+  busctl get-property org.bluez "$p" org.bluez.Device1 Connected Paired Trusted ServicesResolved 2>/dev/null || true
+}
+
+set_airpods_sink() {
+  local id
+  id="$(wpctl status | sed -n '/Sinks:/,/Sources:/p' | grep -i AirPods | head -1 | grep -oE '[0-9]+' | head -1 || true)"
+  if [ -z "${id:-}" ]; then
+    return 1
+  fi
+  wpctl set-default "$id"
+  wpctl set-volume "$id" 0.55 >/dev/null 2>&1 || true
+  log "default sink -> AirPods id=$id ($(wpctl get-volume @DEFAULT_AUDIO_SINK@ 2>/dev/null || true))"
+  return 0
+}
+
+ensure_user_audio() {
+  systemctl --user start pipewire wireplumber pipewire-pulse 2>/dev/null || true
+  # if no endpoints, kick wireplumber once
+  local ep
+  ep="$(endpoint_count)"
+  if [ "${ep:-0}" -lt 1 ]; then
+    log "no A2DP endpoints registered; restarting wireplumber"
+    systemctl --user restart wireplumber
+    sleep 3
+  fi
+}
+
+prefer_csr() {
+  # best-effort without requiring root every time
+  if command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
+    for hci_path in /sys/class/bluetooth/hci*; do
+      [ -e "$hci_path" ] || continue
+      local hci_name address
+      hci_name="$(basename "$hci_path")"
+      address="$(cat "$hci_path/address" 2>/dev/null || true)"
+      if [ "$address" = "$REALTEK_ADDR" ]; then
+        sudo -n hciconfig "$hci_name" down 2>/dev/null || true
+      elif [ "$address" = "$CSR_ADDR" ]; then
+        sudo -n hciconfig "$hci_name" up 2>/dev/null || true
+      fi
+    done
+  fi
+  # also try bluetoothctl power on default
+  bluetoothctl power on >/dev/null 2>&1 || true
+}
+
+status() {
+  log "controllers"
+  controllers
+  show_adapter_power
+  log "bluetoothd cmdline"
+  tr '\0' ' ' <"/proc/$(pgrep -n bluetoothd)/cmdline" 2>/dev/null || echo "(no bluetoothd)"
+  echo
+  log "airpods device"
+  bluetoothctl info "$AIRPODS_MAC" 2>/dev/null | grep -iE 'Name|Paired|Bonded|Trusted|Connected|Icon' | head -20 || echo "(not known)"
+  device_props
+  log "endpoints=$(endpoint_count) transports=$(transport_count)"
+  bond_info || true
+  log "wpctl sinks/sources (bt-related)"
+  wpctl status 2>/dev/null | grep -iE 'bluez|airpod|Headphones|Sink|Source|vol:' | head -30 || true
+  log "recent bluetooth journal"
+  journalctl -u bluetooth --no-pager --since "5 min ago" 2>/dev/null \
+    | grep -iE "avdtp|Permission|Endpoint registered|Failed|${AIRPODS_MAC}|AirPods" | tail -20 || true
+}
+
+soft_connect() {
+  prefer_csr
+  ensure_user_audio
+  log "trust + connect $AIRPODS_MAC"
+  bluetoothctl trust "$AIRPODS_MAC" >/dev/null 2>&1 || true
+  # disconnect first if half-connected
+  bluetoothctl disconnect "$AIRPODS_MAC" >/dev/null 2>&1 || true
+  sleep 1
+  if ! timeout 25 bluetoothctl connect "$AIRPODS_MAC"; then
+    log "connect command returned failure (may still be up)"
+  fi
+  sleep 3
+  # force A2DP profile
+  busctl call org.bluez "$(dev_path)" org.bluez.Device1 ConnectProfile s "$A2DP_UUID" 2>/dev/null || true
+  local i t
+  for i in 1 2 3 4 5 6 7 8 9 10; do
+    t="$(transport_count)"
+    if [ "${t:-0}" -ge 1 ]; then
+      break
+    fi
+    sleep 1
+  done
+  if set_airpods_sink; then
+    log "OK: transport=$(transport_count)"
+    status | sed -n '1,40p'
+    return 0
+  fi
+  log "no AirPods sink yet. transport=$(transport_count)"
+  log "if Connected:yes but no sink: bad bond or no encryption — try: airpods-fix --pair"
+  status
+  return 1
+}
+
+reset_bt() {
+  log "restart bluetooth + wireplumber (needs sudo for bluetooth.service)"
+  if command -v sudo >/dev/null 2>&1; then
+    sudo systemctl restart bluetooth
+  else
+    die "sudo required for --reset-bt"
+  fi
+  sleep 2
+  prefer_csr
+  systemctl --user restart wireplumber pipewire pipewire-pulse
+  sleep 3
+  soft_connect
+}
+
+pair_flow() {
+  prefer_csr
+  ensure_user_audio
+  log "PAIR MODE"
+  log "Buds must be in CASE, lid OPEN, light WHITE FLASHING."
+  log "Do NOT put them in your ears until this script says so."
+  echo
+  read -r -p "White flashing and ready? [y/N] " ans
+  case "${ans,,}" in
+    y|yes) ;;
+    *) die "abort: get white flashing, then re-run airpods-fix --pair" ;;
+  esac
+
+  # remove weak local device entry (not full factory reset of buds)
+  bluetoothctl disconnect "$AIRPODS_MAC" >/dev/null 2>&1 || true
+  bluetoothctl remove "$AIRPODS_MAC" >/dev/null 2>&1 || true
+
+  log "scanning + pairing (one bluetoothctl session)"
+  rm -f /tmp/airpods-found /tmp/airpods-btctl.log
+  (
+    printf '%s\n' \
+      "power on" \
+      "agent NoInputNoOutput" \
+      "default-agent" \
+      "pairable on" \
+      "scan on"
+    for i in $(seq 1 35); do
+      if bluetoothctl devices 2>/dev/null | grep -q "$AIRPODS_MAC"; then
+        echo "FOUND $i" > /tmp/airpods-found
+        break
+      fi
+      sleep 1
+    done
+    if [ ! -f /tmp/airpods-found ]; then
+      echo "NOTFOUND" > /tmp/airpods-found
+    fi
+    sleep 1
+    echo "pair $AIRPODS_MAC"
+    sleep 28
+    echo "trust $AIRPODS_MAC"
+    sleep 2
+    echo "scan off"
+    sleep 1
+    echo "quit"
+  ) | bluetoothctl > /tmp/airpods-btctl.log 2>&1 || true
+
+  if grep -q NOTFOUND /tmp/airpods-found 2>/dev/null; then
+    log "device never appeared in scan"
+    log "check: CSR powered? white flashing? phone not stealing pairing?"
+    grep -iE "AirPods|$AIRPODS_MAC|Fail|Error" /tmp/airpods-btctl.log | tail -20 || true
+    die "pair aborted"
+  fi
+
+  if ! grep -qi "Pairing successful" /tmp/airpods-btctl.log; then
+    log "did not see Pairing successful — dump:"
+    grep -iE "pair|fail|error|bonded|Connected|AirPods" /tmp/airpods-btctl.log | tail -40 || true
+  else
+    log "Pairing successful"
+  fi
+
+  echo
+  log "*** in ears now *** put BOTH AirPods in your ears, then press Enter"
+  read -r _
+
+  log "connecting for A2DP"
+  timeout 25 bluetoothctl connect "$AIRPODS_MAC" || true
+  sleep 4
+  busctl call org.bluez "$(dev_path)" org.bluez.Device1 ConnectProfile s "$A2DP_UUID" 2>/dev/null || true
+
+  local i t
+  for i in 1 2 3 4 5 6 7 8 9 10 11 12; do
+    t="$(transport_count)"
+    if [ "${t:-0}" -ge 1 ] && set_airpods_sink; then
+      log "OK after pair: transport=$t"
+      # remind about bond type if readable
+      bond_info || true
+      return 0
+    fi
+    sleep 1
+  done
+
+  log "paired but no sink. Check bond Type (want 4/7 not 0) and journal avdtp lines."
+  status
+  return 1
+}
+
+case "$MODE" in
+  status) status ;;
+  soft) soft_connect ;;
+  reset) reset_bt ;;
+  pair) pair_flow ;;
+esac

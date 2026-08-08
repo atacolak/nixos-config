@@ -24,19 +24,44 @@ if eval says a path is not tracked, do not debug nixpkgs. add the file.
 
 ## bluetooth hardware
 
-internal realtek bluetooth/wifi is unreliable for airpods on this laptop.
-observed failure mode: pairing/connecting may partly work, but a2dp transport fails or no pipewire sink appears.
+AirPods audio is load-bearing and adapter-specific on this laptop.
 
 known controllers:
 
 ```text
-internal realtek/lite-on: F4:6A:DD:26:38:42
-usb csr dongle:          00:1A:7D:DA:71:13
+usb csr dongle (USE FOR AIRPODS):  00:1A:7D:DA:71:13
+internal realtek/lite-on (DISABLE): F4:6A:DD:26:38:42
+AirPods MAC:                        2C:32:6A:C1:8D:00
 ```
 
-`modules/bluetooth.nix` intentionally disables the internal controller and lets the csr dongle handle bluetooth audio.
+`modules/bluetooth.nix` intentionally:
 
-if bluetooth is changed, verify controller state and audio sink state. do not remove the workaround as "cleanup".
+- keeps the **CSR USB dongle up** for bluetooth audio
+- forces the **internal Realtek controller down**
+- runs `bluetoothd -P headset` so HFP cannot race A2DP
+- disables btusb autosuspend
+
+Do not invert adapter policy as "cleanup". Docs and code must match.
+
+Working AirPods session requires **all** of:
+
+- bond on CSR with `LinkKey Type` 4 or 7 (not 0)
+- ACL `AUTH ENCRYPT` (encryption completed)
+- A2DP `MediaTransport1` present
+- PipeWire sink visible in `wpctl status`
+
+`Connected: yes` alone is not success. Common false success: ACL up, encryption missing, `avdtp Permission denied (13)`, no sink.
+
+User recovery helper:
+
+```text
+airpods-fix           # soft reconnect
+airpods-fix --status
+airpods-fix --pair    # white-flashing in case, then in-ears when prompted
+airpods-fix --reset-bt
+```
+
+If bluetooth is changed, verify controller state, bluetoothd flags, encryption/transport, and sink state. Read `docs/runbooks/bluetooth.md` first.
 
 ## sway
 

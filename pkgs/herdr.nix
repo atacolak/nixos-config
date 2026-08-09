@@ -5,11 +5,11 @@
 
 stdenvNoCC.mkDerivation {
   pname = "herdr";
-  version = "0.7.5";
+  version = "0.8.0";
 
   src = fetchurl {
-    url = "https://github.com/herdrdev/herdr/releases/download/v0.7.5/herdr-linux-x86_64";
-    hash = "sha256-PcgyiAc+TC08Z5ow576XvMqRQcb9F7u5khkULpXFklM=";
+    url = "https://github.com/herdrdev/herdr/releases/download/v0.8.0/herdr-linux-x86_64";
+    hash = "sha256:b872ea7e40fa2cb17e857ac9b62b1bf26db7b403c622f5d2f3f5b35f6e9acd28";
   };
 
   dontUnpack = true;

@@ -194,6 +194,7 @@ in
     obsidian
 
     jetbrains-mono
+    nerd-fonts.jetbrains-mono
     fira-code
 
     kittyShade
@@ -375,6 +376,9 @@ in
 
     [ui.toast]
     delivery = "off"
+
+    [experimental]
+    kitty_graphics = true
   '';
 
   xdg.configFile."kitty/kitty.conf".source = ./files/kitty/kitty.conf;

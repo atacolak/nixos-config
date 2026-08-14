@@ -26,7 +26,7 @@ let
 
   modernMinimalUiSounds = pkgs.callPackage ../pkgs/modern-minimal-ui-sounds.nix { };
 
-  handy = pkgs.callPackage ../pkgs/handy.nix { };
+  # handy: pkgs.handy from nixpkgs (drops AppImage requireFile)
 
   swayKillClean = pkgs.writeScriptBin "sway-kill-clean" ''
     #!${pkgs.python3}/bin/python3
@@ -35,7 +35,7 @@ let
 
   handySwayStart = pkgs.writeShellApplication {
     name = "handy-sway-start";
-    runtimeInputs = [ pkgs.jq handy ];
+    runtimeInputs = [ pkgs.jq pkgs.handy ];
     text = builtins.readFile ./scripts/handy-sway-start;
   };
 
@@ -174,7 +174,7 @@ in
     modernMinimalUiSounds
     libcanberra-gtk3
     sound-theme-freedesktop
-    handy
+    pkgs.handy
     handySwayStart
     brightnessctl
     playerctl
@@ -193,7 +193,6 @@ in
     vscode
     obsidian
 
-    jetbrains-mono
     nerd-fonts.jetbrains-mono
     fira-code
 

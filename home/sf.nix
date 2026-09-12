@@ -368,7 +368,7 @@ in
     name = "one-dark"
 
     [ui]
-    mouse_capture = false
+    mouse_capture = true
     mouse_scroll_lines = 6
     agent_panel_scope = "all"
     show_agent_labels_on_pane_borders = true

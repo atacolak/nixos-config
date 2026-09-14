@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+# Daily Cloak (stealth Chromium). Always exposes CDP on 127.0.0.1:9222.
+# Shared surface: you drive the window, agents attach to that same process.
+set -euo pipefail
+
+CHROME_DIR="${CLOAK_CHROME_DIR:-${HOME}/.cloakbrowser/chromium-146.0.7680.177.5}"
+CHROME="${CLOAK_CHROME:-${CHROME_DIR}/chrome}"
+PROFILE="${CLOAK_PROFILE:-${HOME}/.cloakbrowser/profile}"
+EXT_ROOT="${CLOAK_EXT_ROOT:-${HOME}/.cloakbrowser/extensions}"
+CDP_PORT="${CLOAK_CDP_PORT:-9222}"
+NIX_LD_DIR="/run/current-system/sw/share/nix-ld/lib"
+
+if [[ ! -x "${CHROME}" ]]; then
+  echo "cloak-session: missing chrome at ${CHROME}" >&2
+  echo "download: GitHub CloakHQ/cloakbrowser release chromium-v146.0.7680.177.5" >&2
+  exit 1
+fi
+
+mkdir -p "${PROFILE}"
+
+if [[ -f "${CHROME_DIR}/libEGL.so" && ! -e "${CHROME_DIR}/libEGL.so.1" ]]; then
+  ln -sfn libEGL.so "${CHROME_DIR}/libEGL.so.1"
+fi
+if [[ -f "${CHROME_DIR}/libGLESv2.so" && ! -e "${CHROME_DIR}/libGLESv2.so.2" ]]; then
+  ln -sfn libGLESv2.so "${CHROME_DIR}/libGLESv2.so.2"
+fi
+
+if [[ -z "${NIX_LD:-}" && -e "${NIX_LD_DIR}/ld.so" ]]; then
+  export NIX_LD="${NIX_LD_DIR}/ld.so"
+fi
+if [[ -z "${NIX_LD_LIBRARY_PATH:-}" && -d "${NIX_LD_DIR}" ]]; then
+  export NIX_LD_LIBRARY_PATH="${NIX_LD_DIR}"
+fi
+if [[ -z "${NIX_LD:-}" ]]; then
+  echo "cloak-session: NIX_LD unset and ${NIX_LD_DIR}/ld.so missing. Rebuild nix-ld." >&2
+  exit 1
+fi
+
+export LD_LIBRARY_PATH="${CHROME_DIR}${NIX_LD_LIBRARY_PATH:+:${NIX_LD_LIBRARY_PATH}}${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
+
+ext_args=()
+if [[ -d "${EXT_ROOT}" ]]; then
+  mapfile -t ext_dirs < <(find "${EXT_ROOT}" -mindepth 1 -maxdepth 1 -type d -exec test -f '{}/manifest.json' ';' -print | sort)
+  if ((${#ext_dirs[@]})); then
+    IFS=,
+    ext_args+=(--disable-extensions-except="${ext_dirs[*]}" --load-extension="${ext_dirs[*]}")
+    unset IFS
+  fi
+fi
+
+# Full uBlock Origin is MV2. Chrome 146 still has these kill-switches in the binary.
+mkdir -p "${PROFILE}/policies/managed"
+cat >"${PROFILE}/policies/managed/mv2.json" <<'JSON'
+{
+  "ExtensionManifestV2Availability": 2
+}
+JSON
+
+exec "${CHROME}" \
+  --user-data-dir="${PROFILE}" \
+  --remote-debugging-port="${CDP_PORT}" \
+  --remote-debugging-address=127.0.0.1 \
+  --remote-allow-origins=* \
+  --no-sandbox \
+  --test-type \
+  --fingerprint-platform=windows \
+  --ozone-platform=wayland \
+  --use-gl=angle \
+  --use-angle=swiftshader \
+  --disable-session-crashed-bubble \
+  --hide-crash-restore-bubble \
+  --allow-legacy-extension-manifests \
+  --disable-features=ExtensionManifestV2Unsupported,ExtensionManifestV2Disabled \
+  "${ext_args[@]}" \
+  "$@"

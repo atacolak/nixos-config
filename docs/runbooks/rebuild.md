@@ -1,30 +1,23 @@
 # runbook: rebuild
 
-use for nixos or home-manager changes.
-
-## loop
+use `nixrebuild`. do not retype the flake path.
 
 ```bash
-cd /home/sf/nixos-config
-git status --short
+nixrebuild           # eval, then sudo switch
+nixrebuild --eval    # eval only
+nixrebuild --dry     # dry-run
 ```
 
-if new nix-read files were added:
+it:
 
-```bash
-git add path/to/file
-```
+- `cd`s to `/home/sf/nixos-config`
+- refuses untracked nix-read files (flake cannot see them)
+- refuses to switch if `services.netbird.enable` is not `true`
+- then `sudo nixos-rebuild switch --flake ~/nixos-config#laptop`
 
-flakes cannot see untracked files.
+you type sudo. agents should not run this unattended.
 
-then:
-
-```bash
-nix eval --raw .#nixosConfigurations.laptop.config.system.build.toplevel
-sudo nixos-rebuild switch --flake .#laptop
-readlink /run/current-system
-systemctl --no-pager is-active home-manager-sf.service
-```
+rollback: `nixrollback` (see `docs/rollback.md`).
 
 ## when not to switch
 
@@ -37,3 +30,4 @@ skip switch only if:
 ## after switch
 
 verify the relevant runtime behavior using `docs/verification.md`.
+check `systemctl is-active netbird` before you walk away.

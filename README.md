@@ -24,7 +24,9 @@ boring means recoverable.
 
 ## daily use
 
-**rebuild**: `sudo nixos-rebuild switch --flake /home/sf/nixos-config#laptop`
+**rebuild**: `nixrebuild` (eval + sudo switch of `~/nixos-config#laptop`)
+
+**rollback**: `nixrollback` (previous gen). `nixrollback --list` / `nixrollback 109`.
 
 **add a vs code extension**: edit `home/sf.nix` → rebuild → restart vs code.
 
@@ -49,16 +51,36 @@ to manage wifi, use `nmtui`.
 
 `bluetui` — bluetooth. `nmtui` — wifi.
 
+`launch-roblox` — Roblox player via Sober (Flathub). not wine. see `docs/runbooks/roblox.md`.
+
+`nixrebuild` — eval + switch. `nixrollback` — previous generation.
+
 ## env
 
 `PI_OFFLINE=1` is set in sessionVariables.
 
 ## rebuild
 
-`sudo nixos-rebuild switch --flake ~/nixos-config#laptop`
+`nixrebuild`
 ## misc
 
-`wl-copy < file` — pipe a file's content into the clipboard.
-`wl-paste > file` — dump clipboard to a file.
-
 `cp src dst` — copy files. `cp -r` for directories.
+
+## clipboard (no xclip)
+
+sway/wayland. package: `wl-clipboard`. binaries already on PATH.
+
+| x11 | sfnix |
+|---|---|
+| `xclip -i` / `xclip -sel c` | `wl-copy` |
+| `xclip -o` / `xclip -sel c -o` | `wl-paste` |
+| `xclip -sel p` | `wl-copy --primary` / `wl-paste --primary` |
+
+```bash
+echo hello | wl-copy
+wl-copy < file
+wl-paste
+wl-paste > file
+```
+
+cross-machine: `clip-push` / `clip-pull` (aliases in `home/sf.nix`).

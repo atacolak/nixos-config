@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# fuzzel with current XDG data dirs. sway's login env is frozen and
+# missed /var/lib/flatpak/exports/share after a mid-session switch.
+# also prepend ~/.local/share in case this fuzzel only walks DATA_DIRS.
+set -euo pipefail
+
+export XDG_DATA_HOME="${XDG_DATA_HOME:-${HOME}/.local/share}"
+extra="${XDG_DATA_HOME}:${HOME}/.local/share/flatpak/exports/share:/var/lib/flatpak/exports/share"
+if [[ ":${XDG_DATA_DIRS:-}:" != *":/var/lib/flatpak/exports/share:"* ]]; then
+  export XDG_DATA_DIRS="${extra}${XDG_DATA_DIRS:+:${XDG_DATA_DIRS}}"
+fi
+
+exec fuzzel \
+  --fields=filename,name,generic,exec,categories,keywords,comment \
+  "$@"

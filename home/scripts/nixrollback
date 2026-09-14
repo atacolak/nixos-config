@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+# nixrollback — previous generation, or a named one.
+# does not revert git. you still have to fix the tree.
+set -euo pipefail
+
+PROFILE="${NIXROLLBACK_PROFILE:-/nix/var/nix/profiles/system}"
+
+usage() {
+  cat <<'EOF'
+nixrollback — undo a bad nixos-rebuild switch
+
+  nixrollback           previous generation
+  nixrollback 109       switch to that generation
+  nixrollback --list    list generations
+  nixrollback --help
+
+does not revert git. after rollback, inspect the tree, then nixrebuild
+only once you know why the new gen was bad.
+EOF
+}
+
+list_gens() {
+  sudo nix-env --list-generations --profile "$PROFILE"
+  echo ">> current $(readlink /run/current-system)"
+  echo ">> profile $(readlink "$PROFILE")"
+}
+
+case "${1:-}" in
+  -h|--help) usage; exit 0 ;;
+  --list|-l) list_gens; exit 0 ;;
+  "")
+    echo ">> current $(readlink /run/current-system)"
+    echo ">> rollback (sudo)"
+    sudo nixos-rebuild switch --rollback
+    ;;
+  *)
+    if [[ ! "$1" =~ ^[0-9]+$ ]]; then
+      echo "unknown arg: $1 (try --help)" >&2
+      exit 2
+    fi
+    echo ">> current $(readlink /run/current-system)"
+    echo ">> switch-generation $1 (sudo)"
+    sudo nix-env --switch-generation "$1" --profile "$PROFILE"
+    sudo "$(readlink -f "$PROFILE")/bin/switch-to-configuration" switch
+    ;;
+esac
+
+echo ">> now $(readlink /run/current-system)"
+echo ">> profile $(readlink "$PROFILE")"
+systemctl --no-pager is-active netbird || true
+echo ">> git was not reverted"

@@ -102,6 +102,7 @@ put settings where they belong:
   - pipewire service, bluetooth controller behavior
   - display managers and system desktop enablement
   - firewall, power management, system gc
+  - flatpak service (`modules/flatpak.nix`)
 
 - home manager:
   - shell aliases
@@ -134,6 +135,9 @@ use these before editing common areas:
 
 - `docs/runbooks/bluetooth.md`
   - how to touch bluetooth without breaking the airpods/dongle workaround.
+
+- `docs/runbooks/roblox.md`
+  - Sober (Flathub) for Roblox player. not wine.
 
 ## bluetooth warning
 
@@ -177,6 +181,7 @@ runtime logs/sockets/session files under `/home/sf/.config/herdr/` are state, no
 - package needed by the whole system or root? add to `modules/packages.nix`.
 - package only for `sf`? add to `home/sf.nix`.
 - package not in nixpkgs? create or update a derivation in `pkgs/` and consume it from a module or home config.
+- flathub app (Sober)? add the app id in `modules/flatpak.nix`.
 
 avoid dumping everything into `environment.systemPackages`.
 
@@ -188,6 +193,7 @@ good module names:
 
 - `bluetooth.nix`
 - `desktop.nix`
+- `flatpak.nix`
 - `networking.nix`
 - `power.nix`
 
@@ -207,6 +213,7 @@ if a module cannot be described in one plain sentence, it is probably fake struc
 - do not put passwords, api keys, private ssh keys, tokens, or sudo passwords into nix files.
 - do not add untracked files and then run nix eval expecting flakes to see them.
 - do not claim a graphical setting works from an ssh tty without checking the actual runtime state where possible.
+- do not install Roblox via wine, grapejuice, vinegar, or proton. Sober only.
 
 ## secrets
 

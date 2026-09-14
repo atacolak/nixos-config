@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+# nixrebuild — eval then switch ~/nixos-config#laptop.
+# you type sudo. agents should not run this unattended.
+set -euo pipefail
+
+FLAKE="${NIXREBUILD_FLAKE:-/home/sf/nixos-config}"
+ATTR="${NIXREBUILD_ATTR:-laptop}"
+
+usage() {
+  cat <<'EOF'
+nixrebuild — sudo nixos-rebuild switch --flake ~/nixos-config#laptop
+
+  nixrebuild           eval, then switch
+  nixrebuild --eval    eval only, no switch
+  nixrebuild --dry     nixos-rebuild dry-run
+  nixrebuild --help
+
+refuses to switch if the evaluated config drops services.netbird.enable.
+that is how gen 111 made the box dark.
+EOF
+}
+
+MODE="switch"
+case "${1:-}" in
+  -h|--help) usage; exit 0 ;;
+  --eval|--eval-only) MODE="eval" ;;
+  --dry|--dry-run) MODE="dry" ;;
+  "") MODE="switch" ;;
+  *)
+    echo "unknown arg: $1 (try --help)" >&2
+    exit 2
+    ;;
+esac
+
+cd "$FLAKE"
+
+echo ">> flake $FLAKE#$ATTR"
+echo ">> current $(readlink /run/current-system)"
+git status --short || true
+
+untracked_nix="$(git ls-files --others --exclude-standard -- '*.nix' 'flake.lock' 'home/scripts/*' 'pkgs/*' || true)"
+if [[ -n "$untracked_nix" ]]; then
+  echo "!! untracked nix-read files (flake cannot see these):" >&2
+  printf '%s\n' "$untracked_nix" >&2
+  echo "!! git add them, then re-run nixrebuild" >&2
+  exit 1
+fi
+
+echo ">> eval netbird"
+netbird_on="$(nix eval --impure --expr '(builtins.getFlake "'"$FLAKE"'").nixosConfigurations.'"$ATTR"'.config.services.netbird.enable' || true)"
+if [[ "$netbird_on" != "true" ]]; then
+  echo "!! evaluated config has services.netbird.enable = ${netbird_on:-unset}" >&2
+  echo "!! aborting. last time a switch without netbird dropped the overlay." >&2
+  exit 1
+fi
+echo ">> netbird.enable = true"
+
+echo ">> eval toplevel"
+toplevel="$(nix eval --raw ".#nixosConfigurations.${ATTR}.config.system.build.toplevel")"
+echo ">> $toplevel"
+
+if [[ "$MODE" == "eval" ]]; then
+  echo ">> eval-only, not switching"
+  exit 0
+fi
+
+if [[ "$MODE" == "dry" ]]; then
+  echo ">> dry-run"
+  exec sudo nixos-rebuild dry-run --flake "${FLAKE}#${ATTR}"
+fi
+
+echo ">> switch (sudo)"
+sudo nixos-rebuild switch --flake "${FLAKE}#${ATTR}"
+echo ">> now $(readlink /run/current-system)"
+systemctl --no-pager is-active home-manager-sf.service || true
+systemctl --no-pager is-active netbird || true
+command -v nixrebuild >/dev/null && echo ">> nixrebuild on PATH"
+command -v nixrollback >/dev/null && echo ">> nixrollback on PATH"

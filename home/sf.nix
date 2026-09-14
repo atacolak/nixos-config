@@ -62,6 +62,12 @@ let
     text = builtins.readFile ./scripts/firefox-session;
   };
 
+  cloakSession = pkgs.writeShellApplication {
+    name = "cloak-session";
+    runtimeInputs = [ ];
+    text = builtins.readFile ./scripts/cloak-session;
+  };
+
   i3CycleTabSibling = pkgs.writeScriptBin "i3-cycle-tab-sibling" ''
     #!${pkgs.python3}/bin/python3
     ${builtins.readFile ./scripts/i3-cycle-tab-sibling}
@@ -130,6 +136,13 @@ let
     name = "airpods-fix";
     runtimeInputs = with pkgs; [ bluez bluez-tools wireplumber pulseaudio dbus systemd coreutils gnugrep gnused gawk ];
     text = builtins.readFile ./scripts/airpods-fix;
+  };
+
+  # Roblox player via Sober (android APK runtime). not wine.
+  launchRoblox = pkgs.writeShellApplication {
+    name = "launch-roblox";
+    runtimeInputs = with pkgs; [ flatpak coreutils ];
+    text = builtins.readFile ./scripts/launch-roblox;
   };
 in
 {
@@ -206,6 +219,8 @@ in
     swayI3Msg
     swayI3Lock
     firefoxSession
+    cloakSession
+    steam-run
     ungoogled-chromium
     wireguard-tools
     nwg-displays
@@ -223,6 +238,7 @@ in
     rhtml
     mullvadSg
     airpodsFix
+    launchRoblox
   ];
 
   programs.bash.enable = true;
@@ -268,10 +284,10 @@ in
   };
 
   home.shellAliases = {
-    ata-herdr = "herdr --remote sf@ata-ubuntu --remote-keybindings server";
+    ata-herdr = "herdr --remote sf@sfub --remote-keybindings server";
     # clipboard sync over tailscale — push/pull between sfnix and ata-ubuntu
-    clip-push = "wl-paste | ssh ata-ubuntu \"DISPLAY=:1 xclip -i -selection clipboard\"";
-    clip-pull = "ssh ata-ubuntu \"DISPLAY=:1 xclip -o -selection clipboard 2>/dev/null\" | wl-copy";
+    clip-push = "wl-paste | ssh sfub \"DISPLAY=:1 xclip -i -selection clipboard\"";
+    clip-pull = "ssh sfub \"DISPLAY=:1 xclip -o -selection clipboard 2>/dev/null\" | wl-copy";
   };
 
   home.sessionVariables = {
@@ -306,14 +322,47 @@ in
         ControlPersist = "no";
       };
 
-      "ata-ubuntu" = {
+      "sfub ata-ubuntu" = {
         User = "sf";
-        HostName = "ata-ubuntu";
+        HostName = "sfub";
         IdentityFile = "~/.ssh/id_ed25519";
         IdentitiesOnly = true;
         ServerAliveInterval = 30;
         ServerAliveCountMax = 3;
       };
+
+      "sfpix pixel-8-pro" = {
+        User = "root";
+        HostName = "pixel-8-pro";
+        Port = 2222;
+        IdentityFile = "~/.ssh/sfpix_agent";
+        IdentitiesOnly = true;
+        PreferredAuthentications = "publickey";
+        ServerAliveInterval = 20;
+        ServerAliveCountMax = 3;
+        ConnectTimeout = 10;
+      };
+
+      "sfiph iphone-14" = {
+        User = "sf";
+        HostName = "iphone-14";
+        IdentityFile = "~/.ssh/id_ed25519";
+        IdentitiesOnly = true;
+        ConnectTimeout = 8;
+      };
+    };
+  };
+
+  xdg.desktopEntries.cloak = {
+    name = "Cloak";
+    genericName = "Web Browser";
+    comment = "Stealth Chromium with localhost CDP for agents";
+    exec = "${cloakSession}/bin/cloak-session %U";
+    terminal = false;
+    categories = [ "Network" "WebBrowser" ];
+    mimeType = [ "text/html" "x-scheme-handler/http" "x-scheme-handler/https" ];
+    settings = {
+      Keywords = "cloak;chromium;cdp;";
     };
   };
 
@@ -341,6 +390,9 @@ in
       "text/x-sh" = [ "vim.desktop" ];
       "application/x-shellscript" = [ "vim.desktop" ];
       "application/json" = [ "vim.desktop" ];
+
+      "x-scheme-handler/roblox" = [ "org.vinegarhq.Sober.desktop" ];
+      "x-scheme-handler/roblox-player" = [ "org.vinegarhq.Sober.desktop" ];
     };
     associations.added = {
       "inode/directory" = [ "thunar.desktop" ];
@@ -353,6 +405,9 @@ in
       "text/x-csrc" = [ "vim.desktop" ];
       "text/x-c++src" = [ "vim.desktop" ];
       "application/x-shellscript" = [ "vim.desktop" ];
+
+      "x-scheme-handler/roblox" = [ "org.vinegarhq.Sober.desktop" ];
+      "x-scheme-handler/roblox-player" = [ "org.vinegarhq.Sober.desktop" ];
     };
   };
   xdg.configFile."xfce4/helpers.rc".text = "TerminalEmulator=kitty

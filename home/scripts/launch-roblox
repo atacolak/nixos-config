@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+# Roblox player via Sober (org.vinegarhq.Sober). not wine.
+# 7730U + Barcelo iGPU: leave power-saver for battery, bump to
+# performance only while Sober is running.
+set -euo pipefail
+
+APP=org.vinegarhq.Sober
+ROOT="${HOME}/Games/roblox"
+
+if [[ -z "${WAYLAND_DISPLAY:-}" && -z "${DISPLAY:-}" ]]; then
+  if [[ -S "${XDG_RUNTIME_DIR:-/run/user/1000}/wayland-1" ]]; then
+    export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/1000}"
+    export WAYLAND_DISPLAY=wayland-1
+  fi
+fi
+
+mkdir -p "${ROOT}/logs"
+LOG="${ROOT}/logs/game-$(date +%Y%m%d-%H%M%S).log"
+
+if ! command -v flatpak >/dev/null; then
+  echo "ERROR: flatpak missing (rebuild with modules/flatpak.nix)" >&2
+  exit 1
+fi
+
+run_args=()
+if flatpak info "${APP}" >/dev/null 2>&1; then
+  :
+elif flatpak info --user "${APP}" >/dev/null 2>&1; then
+  run_args+=(--user)
+else
+  echo "ERROR: ${APP} not installed (flathub / nix-flatpak)" >&2
+  exit 1
+fi
+
+prev_profile=""
+restore_power() {
+  if [[ -n "${prev_profile}" ]] && command -v powerprofilesctl >/dev/null; then
+    powerprofilesctl set "${prev_profile}" >/dev/null 2>&1 || true
+  fi
+}
+
+if command -v powerprofilesctl >/dev/null; then
+  prev_profile="$(powerprofilesctl get 2>/dev/null || true)"
+  if [[ -n "${prev_profile}" && "${prev_profile}" != "performance" ]]; then
+    powerprofilesctl set performance >/dev/null 2>&1 || true
+    echo "power profile ${prev_profile} -> performance" | tee -a "${LOG}"
+    trap restore_power EXIT
+  fi
+fi
+
+echo "launching Roblox via Sober (wayland=${WAYLAND_DISPLAY:-} display=${DISPLAY:-})" | tee -a "${LOG}"
+flatpak run "${run_args[@]}" "${APP}" "$@" >>"${LOG}" 2>&1
+restore_power
+trap - EXIT

@@ -2,17 +2,13 @@
 
 use this when a switch succeeds but the new system is bad.
 
-## immediate rollback
-
 ```bash
-sudo nixos-rebuild switch --rollback
+nixrollback           # previous generation
+nixrollback 109       # that generation
+nixrollback --list    # list generations
 ```
 
-## inspect generations
-
-```bash
-sudo nix-env --list-generations --profile /nix/var/nix/profiles/system
-```
+does not revert git. inspect the tree, then `nixrebuild` only once you know why the new gen was bad.
 
 ## boot-time rollback
 
@@ -22,7 +18,5 @@ if the machine cannot boot/use the new generation, choose an older generation fr
 
 1. inspect the bad git diff.
 2. revert or patch the repo.
-3. run eval again.
-4. switch again only after understanding the failure mode.
-
-rollback changes the active system generation. it does not automatically revert git.
+3. `nixrebuild --eval`
+4. `nixrebuild` only after understanding the failure mode.

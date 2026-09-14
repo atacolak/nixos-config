@@ -36,6 +36,19 @@ pkgs/<name>.nix
 
 then consume it from a module or `home/sf.nix`.
 
+## flathub app (sober / roblox)
+
+edit:
+
+```text
+modules/flatpak.nix
+```
+
+add the app id to `services.flatpak.packages`. launcher/mime live in
+`home/sf.nix`. see `docs/runbooks/roblox.md`.
+
+do not install roblox via wine, grapejuice, or vinegar.
+
 ## verify
 
 ```bash

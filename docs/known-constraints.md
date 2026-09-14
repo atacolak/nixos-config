@@ -131,3 +131,15 @@ home/sf.nix
 ```
 
 runtime logs, sockets, and session files under `~/.config/herdr/` are state, not source.
+
+## roblox
+
+player is **Sober** (`org.vinegarhq.Sober`) from Flathub, declared in
+`modules/flatpak.nix`. not a wine prefix. Hyperion killed grapejuice /
+vinegar / proton in 2024.
+
+gpu is AMD Barcelo, not nvidia. do not copy sfub's nvidia ICD env into
+the launcher.
+
+in-app login FunCaptcha never finishes in Sober's webview. log in on
+roblox.com in firefox, then Play (opens `roblox-player://`).

@@ -112,6 +112,18 @@ ls ~/.vscode/extensions/local.atacol-0.0.1/
 ls /home/sf/nixos-config/files/vscode/
 ```
 
+## roblox / sober
+
+```bash
+command -v flatpak
+command -v launch-roblox
+flatpak info org.vinegarhq.Sober
+xdg-mime query default x-scheme-handler/roblox-player
+# expected: org.vinegarhq.Sober.desktop
+```
+
+see `docs/runbooks/roblox.md`. first launch downloads the official APK.
+
 ## git proof
 
 ```bash

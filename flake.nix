@@ -8,10 +8,12 @@
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    nix-flatpak.url = "github:gmodena/nix-flatpak/?ref=v0.7.0";
   };
 
   outputs =
-    { nixpkgs, home-manager, ... }:
+    { nixpkgs, home-manager, nix-flatpak, ... }:
     let
       system = "x86_64-linux";
     in
@@ -21,6 +23,8 @@
 
         modules = [
           ./hosts/laptop/configuration.nix
+
+          nix-flatpak.nixosModules.nix-flatpak
 
           home-manager.nixosModules.home-manager
           {

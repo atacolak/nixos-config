@@ -6,6 +6,7 @@
 
     ../../modules/bluetooth.nix
     ../../modules/desktop.nix
+    ../../modules/flatpak.nix
     ../../modules/herdr.nix
     ../../modules/keyboard.nix
     ../../modules/networking.nix

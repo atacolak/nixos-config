@@ -1,4 +1,4 @@
-{ config, pkgs, lib, inputs, ... }:
+{ config, pkgs, lib, inputs, osConfig, ... }:
 
 let
   # yt-dlp breaks whenever a site changes, so its version must not be frozen by
@@ -272,7 +272,7 @@ in
     hibernateConfirm
     rhtml
     mullvadSg
-    airpodsFix
+  ] ++ lib.optional (osConfig.networking.hostName == "sfnix") airpodsFix ++ [
     launchRoblox
   ];
 

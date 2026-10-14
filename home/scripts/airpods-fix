@@ -210,8 +210,8 @@ soft_connect() {
   fi
   sleep 3
   busctl call org.bluez "$(dev_path)" org.bluez.Device1 ConnectProfile s "$A2DP_UUID" 2>/dev/null || true
-  local i t
-  for i in 1 2 3 4 5 6 7 8 9 10; do
+  local attempt t
+  for ((attempt = 0; attempt < 10; attempt++)); do
     t="$(transport_count)"
     if [ "${t:-0}" -ge 1 ]; then
       break
@@ -270,7 +270,7 @@ pair_flow() {
       "pairable on" \
       "scan on"
     found=""
-    for i in $(seq 1 45); do
+    for ((attempt = 0; attempt < 45; attempt++)); do
       if bluetoothctl devices 2>/dev/null | grep -qi "$AIRPODS_MAC"; then
         found="$AIRPODS_MAC"
         break
@@ -278,7 +278,6 @@ pair_flow() {
       cand="$(bluetoothctl devices 2>/dev/null | awk 'BEGIN{IGNORECASE=1} /AirPods/ {print $2; exit}')"
       if [ -n "${cand:-}" ]; then
         found="$cand"
-        AIRPODS_MAC="$cand"
         break
       fi
       sleep 1
@@ -326,8 +325,8 @@ pair_flow() {
   sleep 4
   busctl call org.bluez "$(dev_path)" org.bluez.Device1 ConnectProfile s "$A2DP_UUID" 2>/dev/null || true
 
-  local i t
-  for i in 1 2 3 4 5 6 7 8 9 10 11 12; do
+  local attempt t
+  for ((attempt = 0; attempt < 12; attempt++)); do
     t="$(transport_count)"
     if [ "${t:-0}" -ge 1 ] && set_airpods_sink; then
       log "OK after pair: transport=$t"

@@ -270,7 +270,7 @@ pair_flow() {
       "pairable on" \
       "scan on"
     found=""
-    for i in $(seq 1 45); do
+    for ((attempt = 0; attempt < 45; attempt++)); do
       if bluetoothctl devices 2>/dev/null | grep -qi "$AIRPODS_MAC"; then
         found="$AIRPODS_MAC"
         break
@@ -278,7 +278,6 @@ pair_flow() {
       cand="$(bluetoothctl devices 2>/dev/null | awk 'BEGIN{IGNORECASE=1} /AirPods/ {print $2; exit}')"
       if [ -n "${cand:-}" ]; then
         found="$cand"
-        AIRPODS_MAC="$cand"
         break
       fi
       sleep 1

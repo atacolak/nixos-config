@@ -22,56 +22,33 @@ write it onto the target root before first boot (see below). do not commit it.
 
 ethernet `enp5s0` exists but is down. ignore it.
 
-## from a nixos usb (recommended)
+## from a nixos usb
 
-1. flash a current nixos unstable iso. boot it. do not mount the samsung except read-only if you need files.
-2. plug the wifi dongle. `nmtui` once to get the installer on the network. this is only for the live session.
-3. partition the kingston, by-id only:
-
-```bash
-DISK=/dev/disk/by-id/ata-KINGSTON_SA400S37240G_50026B7785D7AA0E
-# confirm this is 224g and has no mounted filesystems. abort if not.
-lsblk -o NAME,SIZE,MODEL,MOUNTPOINTS "$DISK"
-
-wipefs -a "$DISK"
-sgdisk --zap-all "$DISK"
-sgdisk -n1:0:+1G -t1:EF00 -c1:ESP "$DISK"
-sgdisk -n2:0:0 -t2:8300 -c2:root "$DISK"
-
-mkfs.vfat -F32 -n ESP "$DISK-part1"
-mkfs.ext4 -L nixos "$DISK-part2"
-
-mount "$DISK-part2" /mnt
-mkdir -p /mnt/boot
-mount "$DISK-part1" /mnt/boot
-```
-
-4. clone this flake onto the target (or copy from ubuntu if it is still up):
+the pny already has `nixos-minimal-26.11`. boot it (firmware menu → usb).
+leave the rtw88 dongle in. as root:
 
 ```bash
-nix-shell -p git --run 'git clone https://github.com/atacolak/nixos-config /mnt/home/sf/nixos-config'
-# private repo: use git@github.com:atacolak/nixos-config.git with a deploy key / forwarded agent
+mkdir -p /mnt-ubuntu
+mount -o ro /dev/disk/by-id/nvme-SAMSUNG_MZVLQ1T0HBLB-00B00_S6F7NJ0R446229-part1 /mnt-ubuntu
+INSTALL_DESKTOP=yes bash /mnt-ubuntu/home/sf/nixos-config/scripts/install-desktop.sh
 ```
 
-5. wifi psk onto the target, never into git:
+that script:
 
-```bash
-install -d -m 700 /mnt/etc/nixos
-printf 'WIFI_PSK=%s\n' 'the-psk' > /mnt/etc/nixos/wifi.env
-chmod 600 /mnt/etc/nixos/wifi.env
-```
+- refuses to run without `INSTALL_DESKTOP=yes`
+- refuses if `/` is the samsung (you are still on ubuntu) or the pny got picked as kingston
+- checks the target is the 224g kingston by-id
+- `nmtui` if the live session has no net
+- prompts for the skynet psk (or take `WIFI_PSK`)
+- partitions **only** the kingston (1g esp + rest ext4)
+- copies `~/nixos-config` off ubuntu read-only
+- `nixos-install --flake …#desktop`
+- `passwd sf` (or `SF_PASSWORD`)
 
-6. install:
+optional: `COPY_OVERLAY=yes` copies `/var/lib/netbird` and `/var/lib/tailscale` so the overlay ips stay.
 
-```bash
-nixos-install --flake /mnt/home/sf/nixos-config#desktop
-nixos-enter --root /mnt -c 'passwd sf'
-```
+then firmware boot menu → kingston. not the pny, not ubuntu.
 
-7. reboot. firmware boot menu → kingston. ubuntu on the samsung is untouched.
-8. `netbird up` (setup key / sso). do not put the key in nix. same for `tailscale up` if the node key was not preserved.
-
-to keep the existing netbird ip `10.77.67.147`, copy `/var/lib/netbird` from ubuntu onto the kingston before first `netbird up`. same story for `/var/lib/tailscale` and `100.65.21.105`.
 
 ## from ubuntu with nix (optional later)
 

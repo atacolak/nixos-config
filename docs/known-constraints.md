@@ -2,12 +2,16 @@
 
 these are facts future agents should preserve unless explicitly asked to retest them.
 
-## host and user
+## hosts and user
 
-- host config target: `.#nixosConfigurations.laptop`
-- machine hostname: `sfnix`
-- normal user: `sf`
+- flake attrs: `.#nixosConfigurations.laptop` and `.#nixosConfigurations.desktop`
+- hostnames: `sfnix` (laptop), `sfub` (desktop)
+- normal user: `sf` (`modules/user.nix`)
 - home-manager is integrated as a nixos module, not run as a separate standalone flake.
+- shared system modules go through `modules/common.nix`.
+- laptop-only: `hosts/laptop/{bluetooth,keyboard,lid,hardware-configuration}.nix`
+- desktop-only: `hosts/desktop/{nvidia,wifi,bluetooth,hardware-configuration}.nix`
+- desktop install target is the kingston sata ssd by-id `ata-KINGSTON_SA400S37240G_50026B7785D7AA0E`. ubuntu lives on the samsung nvme. do not format the samsung in the desktop install runbook.
 
 ## flakes see tracked files only
 
@@ -18,6 +22,7 @@ usually:
 ```bash
 git add path/to/new-file
 nix eval --raw .#nixosConfigurations.laptop.config.system.build.toplevel
+nix eval --raw .#nixosConfigurations.desktop.config.system.build.toplevel
 ```
 
 if eval says a path is not tracked, do not debug nixpkgs. add the file.
@@ -34,13 +39,14 @@ internal realtek/lite-on (DISABLE): F4:6A:DD:26:38:42
 AirPods MAC:                        2C:32:6A:C1:8D:00
 ```
 
-`modules/bluetooth.nix` intentionally:
+`hosts/laptop/bluetooth.nix` intentionally:
 
 - keeps the **CSR USB dongle up** for bluetooth audio
 - forces the **internal Realtek controller down**
 - runs `bluetoothd -P headset` so HFP cannot race A2DP
 - disables btusb autosuspend
 
+desktop bluetooth is a separate module with none of that policy.
 Do not invert adapter policy as "cleanup". Docs and code must match.
 
 Working AirPods session requires **all** of:
@@ -83,7 +89,7 @@ home-manager owns the runtime file.
 
 ## keyboard
 
-caps lock behavior is managed by kmonad in `modules/keyboard.nix`.
+caps lock behavior on the laptop is managed by kmonad in `hosts/laptop/keyboard.nix`.
 
 intended behavior:
 
@@ -138,8 +144,9 @@ player is **Sober** (`org.vinegarhq.Sober`) from Flathub, declared in
 `modules/flatpak.nix`. not a wine prefix. Hyperion killed grapejuice /
 vinegar / proton in 2024.
 
-gpu is AMD Barcelo, not nvidia. do not copy sfub's nvidia ICD env into
-the launcher.
+gpu on sfnix is AMD Barcelo, not nvidia. do not copy sfub nvidia ICD env into
+the laptop launcher. desktop nvidia is `hosts/desktop/nvidia.nix` (proprietary
+userspace + nvidia open kernel module, not nouveau).
 
 in-app login FunCaptcha never finishes in Sober's webview. log in on
 roblox.com in firefox, then Play (opens `roblox-player://`).

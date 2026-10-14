@@ -1,6 +1,6 @@
-# sfnix config
+# nixos-config
 
-this repo is the recipe for my laptop.
+this repo is the recipe for two machines: `sfnix` (laptop) and `sfub` (desktop).
 
 nixos uses these files to build the operating system.
 home manager uses these files to build my user settings.
@@ -24,7 +24,7 @@ boring means recoverable.
 
 ## daily use
 
-**rebuild**: `nixrebuild` (eval + sudo switch of `~/nixos-config#laptop`)
+**rebuild**: `nixrebuild` (eval + sudo switch of `~/nixos-config#laptop` on sfnix, `#desktop` on sfub)
 
 **rollback**: `nixrollback` (previous gen). `nixrollback --list` / `nixrollback 109`.
 

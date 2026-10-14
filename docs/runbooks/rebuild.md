@@ -13,7 +13,7 @@ it:
 - `cd`s to `/home/sf/nixos-config`
 - refuses untracked nix-read files (flake cannot see them)
 - refuses to switch if `services.netbird.enable` is not `true`
-- then `sudo nixos-rebuild switch --flake ~/nixos-config#laptop`
+- then `sudo nixos-rebuild switch --flake ~/nixos-config#laptop` on sfnix, `#desktop` on sfub
 
 you type sudo. agents should not run this unattended.
 

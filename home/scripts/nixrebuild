@@ -1,21 +1,32 @@
 #!/usr/bin/env bash
-# nixrebuild — eval then switch ~/nixos-config#laptop.
+# nixrebuild — eval then switch ~/nixos-config#{laptop,desktop}.
+# attr follows hostname unless NIXREBUILD_ATTR is set.
 # you type sudo. agents should not run this unattended.
 set -euo pipefail
 
 FLAKE="${NIXREBUILD_FLAKE:-/home/sf/nixos-config}"
-ATTR="${NIXREBUILD_ATTR:-laptop}"
 
+host_attr() {
+  case "$(hostname -s 2>/dev/null || hostname)" in
+    sfnix) echo laptop ;;
+    sfub) echo desktop ;;
+    *) echo "" ;;
+  esac
+}
+
+ATTR="${NIXREBUILD_ATTR:-$(host_attr)}"
 usage() {
   cat <<'EOF'
-nixrebuild — sudo nixos-rebuild switch --flake ~/nixos-config#laptop
+nixrebuild — sudo nixos-rebuild switch --flake ~/nixos-config#{laptop,desktop}
 
   nixrebuild           eval, then switch
   nixrebuild --eval    eval only, no switch
   nixrebuild --dry     nixos-rebuild dry-run
   nixrebuild --help
 
+attr is sfnix→laptop, sfub→desktop. override with NIXREBUILD_ATTR.
 refuses to switch if the evaluated config drops services.netbird.enable.
+refuses to switch the other machine's attr on this hostname.
 that is how gen 111 made the box dark.
 EOF
 }
@@ -32,6 +43,26 @@ case "${1:-}" in
     ;;
 esac
 
+
+if [[ -z "$ATTR" ]]; then
+  echo "!! no flake attr for hostname $(hostname). set NIXREBUILD_ATTR=laptop|desktop" >&2
+  exit 2
+fi
+
+live="$(hostname -s 2>/dev/null || hostname)"
+if [[ "$live" == "sfnix" && "$ATTR" != "laptop" ]]; then
+  echo "!! refusing to switch #$ATTR on sfnix (laptop only)" >&2
+  exit 1
+fi
+if [[ "$live" == "sfub" && "$ATTR" != "desktop" ]]; then
+  echo "!! refusing to switch #$ATTR on sfub (desktop only)" >&2
+  exit 1
+fi
+
+if [[ "$MODE" != "eval" && ! -e /run/current-system ]]; then
+  echo "!! not a running nixos system. use --eval, or see docs/runbooks/desktop-install.md" >&2
+  exit 1
+fi
 cd "$FLAKE"
 
 echo ">> flake $FLAKE#$ATTR"

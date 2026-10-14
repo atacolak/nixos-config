@@ -1,6 +1,7 @@
 # agents guide for this nixos configuration
 
-this repo is the declarative source of truth for the laptop named `sfnix`.
+this repo is the declarative source of truth for two machines:
+`sfnix` (flake attr `laptop`) and `sfub` (flake attr `desktop`).
 edit nix files here; do not hand-edit generated files in `/etc`, `/run/current-system`, or `/nix/store`.
 
 this file is the entrypoint for agents. read it first, then read the relevant runbook under `docs/runbooks/` before changing anything nontrivial.
@@ -30,21 +31,22 @@ start here:
 config entrypoints:
 
 - `flake.nix`
-  - pins inputs and wires the laptop system together.
+  - pins inputs and wires both hosts through `mkNixos`.
   - keep this boring. add inputs only when there is a real consumer.
 
-- `hosts/laptop/configuration.nix`
-  - host identity and composition.
-  - this file should answer: "what is this machine?"
-  - keep hardware scan import, hostname, locale/timezone, bootloader, user account, and imported modules here.
+- `hosts/laptop/` and `hosts/desktop/`
+  - host identity and hardware. this directory should answer: "what is this machine?"
+  - hostname, hardware scan, and host-only modules live here.
+  - laptop-only: `bluetooth.nix` (csr/realtek airpods), `keyboard.nix` (i8042 kmonad), `lid.nix` (hibernate uuid).
+  - desktop-only: `nvidia.nix` (proprietary, not nouveau), `wifi.nix` (ssid; psk outside the store), kingston `hardware-configuration.nix`.
 
-- `hosts/laptop/hardware-configuration.nix`
-  - generated hardware scan.
-  - do not casually edit. if hardware changes, regenerate intentionally.
+- `modules/common.nix`
+  - shared system composition (sway/gdm, netbird, home-manager consumer modules, user, locale).
 
 - `modules/*.nix`
   - machine/system configuration grouped by ownership.
-  - use modules for services, hardware behavior, desktop enablement, networking, nix settings, and system packages.
+  - use modules for services, desktop enablement, networking, nix settings, and system packages.
+  - do not put laptop adapter policy or nvidia in a shared module.
 
 - `home/sf.nix`
   - user-level configuration for `sf` via home manager.
@@ -76,8 +78,12 @@ for nix or home-manager changes:
    - nix flakes cannot see untracked files. this is not optional.
 4. evaluate:
    - `nix eval --raw .#nixosConfigurations.laptop.config.system.build.toplevel`
-5. switch only after eval passes, unless the user explicitly says not to:
-   - `sudo nixos-rebuild switch --flake .#laptop`
+   - `nix eval --raw .#nixosConfigurations.desktop.config.system.build.toplevel`
+     if the change can touch shared modules or home.
+5. switch only the machine you are on, after eval passes, unless the user explicitly says not to:
+   - on sfnix: `sudo nixos-rebuild switch --flake .#laptop`
+   - on sfub: `sudo nixos-rebuild switch --flake .#desktop`
+   - never switch `#desktop` on sfnix or `#laptop` on sfub. `nixrebuild` refuses this.
 6. verify runtime behavior with commands from `docs/verification.md`.
 7. commit if the user asked for a commit.
 8. summarize the git diff-level change and the verification performed.
@@ -134,14 +140,17 @@ use these before editing common areas:
   - how to alter sway binds or add helper commands.
 
 - `docs/runbooks/bluetooth.md`
-  - how to touch bluetooth without breaking the airpods/dongle workaround.
+  - how to touch laptop bluetooth without breaking the airpods/dongle workaround.
 
 - `docs/runbooks/roblox.md`
   - Sober (Flathub) for Roblox player. not wine.
 
+- `docs/runbooks/desktop-install.md`
+  - install `#desktop` onto the kingston ssd. never the samsung ubuntu nvme.
+
 ## bluetooth warning
 
-airpods audio is load-bearing. adapter policy and bluez flags must stay aligned.
+airpods audio is load-bearing on the laptop. adapter policy and bluez flags must stay aligned.
 
 intended state:
 
@@ -151,6 +160,7 @@ Realtek internal DOWN: F4:6A:DD:26:38:42
 bluetoothd:            -P headset          (HFP off)
 AirPods MAC:           2C:32:6A:C1:8D:00
 helper:                airpods-fix
+module:                hosts/laptop/bluetooth.nix
 ```
 
 `Connected: yes` without a PipeWire sink / MediaTransport is failure (usually bad bond Type=0 or no encryption).
@@ -163,6 +173,8 @@ docs/known-constraints.md
 ```
 
 and verify with `airpods-fix --status` after rebuild.
+
+desktop bluetooth is `hosts/desktop/bluetooth.nix`. do not import the laptop module there.
 
 ## herdr
 
@@ -209,11 +221,13 @@ if a module cannot be described in one plain sentence, it is probably fake struc
 
 - do not edit `/etc/xdg/herdr/config.toml`; edit `home/sf.nix`.
 - do not manually replace `~/.config/sway/config`; home-manager owns it.
-- do not delete `modules/bluetooth.nix` because the usb dongle workaround looks temporary.
+- do not delete `hosts/laptop/bluetooth.nix` because the usb dongle workaround looks temporary.
 - do not put passwords, api keys, private ssh keys, tokens, or sudo passwords into nix files.
 - do not add untracked files and then run nix eval expecting flakes to see them.
 - do not claim a graphical setting works from an ssh tty without checking the actual runtime state where possible.
 - do not install Roblox via wine, grapejuice, vinegar, or proton. Sober only.
+- do not put a wifi psk, netbird setup key, or nvidia ICD hacks for the other gpu in this repo.
+- do not format the samsung nvme while installing desktop nixos. kingston only. see `docs/runbooks/desktop-install.md`.
 
 ## secrets
 

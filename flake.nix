@@ -1,5 +1,5 @@
 {
-  description = "ata nixos laptop config";
+  description = "ata nixos configs: sfnix laptop, sfub desktop";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -26,26 +26,26 @@
     { nixpkgs, home-manager, nix-flatpak, ... }@inputs:
     let
       system = "x86_64-linux";
-    in
-    {
-      nixosConfigurations.laptop = nixpkgs.lib.nixosSystem {
+
+      mkNixos = host: nixpkgs.lib.nixosSystem {
         inherit system;
-
+        specialArgs = { inherit inputs; };
         modules = [
-          ./hosts/laptop/configuration.nix
-
+          ./hosts/${host}/configuration.nix
           nix-flatpak.nixosModules.nix-flatpak
-
           home-manager.nixosModules.home-manager
           {
             home-manager.useGlobalPkgs = true;
             home-manager.useUserPackages = true;
             home-manager.backupFileExtension = "hm-bak";
-            # home/sf.nix builds yt-dlp from inputs.yt-dlp, so hand it the set.
             home-manager.extraSpecialArgs = { inherit inputs; };
             home-manager.users.sf = import ./home/sf.nix;
           }
         ];
       };
+    in
+    {
+      nixosConfigurations.laptop = mkNixos "laptop";
+      nixosConfigurations.desktop = mkNixos "desktop";
     };
 }

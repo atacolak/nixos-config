@@ -10,10 +10,20 @@
     };
 
     nix-flatpak.url = "github:gmodena/nix-flatpak/?ref=v0.7.0";
+
+    # Upstream's own release tarball. It is a release *asset* behind
+    # releases/latest/download/, so it always resolves to the newest stable
+    # release, and it is not a flake. nixrebuild re-resolves this input before
+    # every eval: that is how yt-dlp stays current without a nixpkgs bump and
+    # without a hand-written version/hash in home/sf.nix.
+    yt-dlp = {
+      url = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.tar.gz";
+      flake = false;
+    };
   };
 
   outputs =
-    { nixpkgs, home-manager, nix-flatpak, ... }:
+    { nixpkgs, home-manager, nix-flatpak, ... }@inputs:
     let
       system = "x86_64-linux";
     in
@@ -31,6 +41,8 @@
             home-manager.useGlobalPkgs = true;
             home-manager.useUserPackages = true;
             home-manager.backupFileExtension = "hm-bak";
+            # home/sf.nix builds yt-dlp from inputs.yt-dlp, so hand it the set.
+            home-manager.extraSpecialArgs = { inherit inputs; };
             home-manager.users.sf = import ./home/sf.nix;
           }
         ];

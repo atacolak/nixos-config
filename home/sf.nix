@@ -1,6 +1,40 @@
-{ config, pkgs, lib, ... }:
+{ config, pkgs, lib, inputs, ... }:
 
 let
+  # yt-dlp breaks whenever a site changes, so its version must not be frozen by
+  # the nixpkgs rev in flake.lock. The flake input "yt-dlp" points at upstream's
+  # release asset URL (releases/latest/download/yt-dlp.tar.gz), which always
+  # resolves to the newest stable release, and nixrebuild runs
+  # `nix flake update yt-dlp` before every eval. So every rebuild re-resolves the
+  # latest release: unchanged release => same narHash => lock untouched => no
+  # rebuild; new release => new src => only this package rebuilds. No version and
+  # no hash are written here, so an upstream release needs no edit.
+  ytDlpVersion =
+    let
+      line = lib.findFirst (l: lib.hasPrefix "__version__ = " l) ""
+        (lib.splitString "\n" (builtins.readFile "${inputs.yt-dlp}/yt_dlp/version.py"));
+    in
+    builtins.head (builtins.match "['\"]([^'\"]+)['\"]" (lib.removePrefix "__version__ = " line));
+
+  # Since 2026.08 upstream's pyproject installs the completions, the manpage and
+  # the docs *into the wheel* via [tool.hatch.build.targets.wheel.shared-data].
+  # nixpkgs already generates and installs all of those itself, so the duplicate
+  # copy makes fixupPhase's moveToOutput fail:
+  #   mv: cannot overwrite '...-doc/share/doc/yt_dlp': Directory not empty
+  # Neutralise that section so only nixpkgs' copies exist. Guarded, so it stays a
+  # no-op if upstream ever drops shared-data again.
+  ytDlp = pkgs.yt-dlp.overrideAttrs (old: {
+    version = ytDlpVersion;
+    src = inputs.yt-dlp;
+    postPatch =
+      (old.postPatch or "")
+      + ''
+        if grep -q 'tool.hatch.build.targets.wheel.shared-data' pyproject.toml; then
+          substituteInPlace pyproject.toml --replace-fail "[tool.hatch.build.targets.wheel.shared-data]" "[tool.hatch.build.targets.wheel.no-shared-data]"
+        fi
+      '';
+  });
+
   kittyShade = pkgs.writeShellApplication {
     name = "kitty-shade";
     runtimeInputs = with pkgs; [ kitty python3 ];
@@ -166,7 +200,7 @@ in
     jq
     unzip
     ffmpeg
-    yt-dlp
+    ytDlp
     mpv
     cava
     unzip
@@ -205,6 +239,7 @@ in
     bluetui
     vscode
     obsidian
+    obs-studio
 
     nerd-fonts.jetbrains-mono
     fira-code

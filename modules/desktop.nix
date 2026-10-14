@@ -54,7 +54,19 @@ in
 
   xdg.portal = {
     enable = true;
-    wlr.enable = true;
+    wlr = {
+      enable = true;
+
+      # The portal runs under a unit whose PATH is a minimal store closure (no
+      # fuzzel), and its built-in chooser chain skips the slurp/simple chooser
+      # for window requests. Without an absolute-path dmenu chooser, Window
+      # Capture in OBS and window screenshare in Firefox silently fail to list
+      # sources.
+      settings.screencast = {
+        chooser_type = "dmenu";
+        chooser_cmd = "${pkgs.fuzzel}/bin/fuzzel -d -l 20 -p 'Select source to share: '";
+      };
+    };
     extraPortals = with pkgs; [ xdg-desktop-portal-gtk ];
     config.common.default = [ "wlr" "gtk" ];
   };

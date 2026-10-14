@@ -67,7 +67,23 @@ bindsym XF86AudioNext exec --no-startup-id playerctl next
 
 exec --no-startup-id swaync
 exec --no-startup-id handy-sway-start
-exec --no-startup-id systemctl --user import-environment WAYLAND_DISPLAY XDG_CURRENT_DESKTOP
+# --- systemd session integration -------------------------------------------
+# NixOS ships the canonical version of this in /etc/sway/config.d/nixos.conf,
+# but that file is only reachable via /etc/sway/config -> include
+# /etc/sway/config.d/*, and sway loads *this* config instead (it is started
+# without -c, and ~/.config/sway/config wins over /etc/sway/config). So the
+# include never happens and the systemd half of the session was never wired up.
+#
+# Consequence of it being missing: graphical-session.target never started. It is
+# RefuseManualStart=yes, so it can only be pulled in as a dependency - which is
+# what sway-session.target does via BindsTo. And xdg-desktop-portal.service has
+# Requisite=graphical-session.target, so with the target down the portal frontend
+# could never start at all, and PipeWire screen/window capture reported
+# "No capture sources available" with an empty device list.
+exec --no-startup-id dbus-update-activation-environment --systemd DISPLAY WAYLAND_DISPLAY SWAYSOCK XDG_CURRENT_DESKTOP
+exec --no-startup-id systemctl --user import-environment WAYLAND_DISPLAY SWAYSOCK XDG_CURRENT_DESKTOP
+exec --no-startup-id systemctl --user start sway-session.target
+exec --no-startup-id swaymsg -t subscribe '["shutdown"]' && systemctl --user stop sway-session.target
 exec_always --no-startup-id sh -lc 'pkill -x swayidle; swayidle -w timeout 600 "swaymsg seat seat0 hide_cursor 1000; pgrep -x swaylock && exit 0; i3-lock" timeout 630 "swaymsg output * dpms off" resume "swaymsg output * dpms on"'
 
 exec_always --no-startup-id sh -c "pkill -x wlsunset; wlsunset -l -37.8 -L 145.0 -t 3000"

@@ -80,11 +80,11 @@ exec --no-startup-id handy-sway-start
 # Requisite=graphical-session.target, so with the target down the portal frontend
 # could never start at all, and PipeWire screen/window capture reported
 # "No capture sources available" with an empty device list.
-exec --no-startup-id dbus-update-activation-environment --systemd DISPLAY WAYLAND_DISPLAY SWAYSOCK XDG_CURRENT_DESKTOP
-exec --no-startup-id systemctl --user import-environment WAYLAND_DISPLAY SWAYSOCK XDG_CURRENT_DESKTOP
-exec --no-startup-id systemctl --user start sway-session.target
+# Import the Wayland environment before starting session-bound user units.
+# Separate execs race: swayidle's ConditionEnvironment could fail on login.
+exec --no-startup-id sh -c 'dbus-update-activation-environment --systemd DISPLAY WAYLAND_DISPLAY SWAYSOCK XDG_CURRENT_DESKTOP && systemctl --user start sway-session.target'
 exec --no-startup-id swaymsg -t subscribe '["shutdown"]' && systemctl --user stop sway-session.target
-exec_always --no-startup-id sh -lc 'pkill -x swayidle; swayidle -w timeout 600 "swaymsg seat seat0 hide_cursor 1000; pgrep -x swaylock && exit 0; i3-lock" timeout 630 "swaymsg output * dpms off" resume "swaymsg output * dpms on"'
+# Home Manager owns the swayidle user service; no compositor-spawned duplicate.
 
 exec_always --no-startup-id sh -c "pkill -x wlsunset; wlsunset -l -37.8 -L 145.0 -t 3000"
 # repo-managed helpers, installed by home-manager
@@ -93,20 +93,15 @@ set $wmutil wmutil
 set $firefox_session firefox-session
 set $audio_toggle audio-toggle
 set $audio_input_toggle audio-input-toggle
-set $i3_save_default_workspaces i3-save-default-workspaces
-set $i3_restore_default_workspaces i3-restore-default-workspaces
-set $i3_tree_path i3-tree-path
-set $i3_spawn_here i3-spawn-here
-set $i3_lock_cmd i3-lock
-set $i3_cycle_tab_sibling i3-cycle-tab-sibling
-set $i3_resurrect_save_ws i3-resurrect-save-workspace-confirm
-set $i3_resurrect_restore_ws i3-resurrect-restore-workspace-confirm
+set $sway_tree_path sway-tree-path
+set $sway_spawn_here sway-spawn-here
+set $sway_cycle_tab_sibling sway-cycle-tab-sibling
 
 # terminal / launcher
 bindsym $mod+Return exec --no-startup-id $term
 bindsym $mod+shift+z exec --no-startup-id task-terminal main
 bindsym --no-repeat $mod+space exec --no-startup-id fuzzel
-bindsym $mod+q exec --no-startup-id sway-kill-clean
+bindsym $mod+q kill
 bindsym $mod+n exec --no-startup-id swaync-client --toggle-panel
 bindsym $mod+Shift+q exec --no-startup-id $wmutil kill-class
 
@@ -123,49 +118,25 @@ bindsym $mod+d exec --no-startup-id $wmutil cycle-or-run --class thunar --scope 
 
 bindsym $mod+Tab exec --no-startup-id $wmutil cycle-focused --scope current
 bindsym $mod+Shift+Tab exec --no-startup-id $wmutil cycle-focused --scope current --reverse
-bindsym Mod1+Tab exec --no-startup-id $i3_cycle_tab_sibling
-bindsym Mod1+Shift+Tab exec --no-startup-id $i3_cycle_tab_sibling --reverse
+bindsym Mod1+Tab exec --no-startup-id $sway_cycle_tab_sibling
+bindsym Mod1+Shift+Tab exec --no-startup-id $sway_cycle_tab_sibling --reverse
 
 bindsym $mod+F5 exec --no-startup-id $audio_input_toggle
 bindsym $mod+F6 exec --no-startup-id $audio_toggle
 bindsym $mod+F8 exec --no-startup-id pkill -USR1 -x wlsunset
 bindsym $mod+F10 exec --no-startup-id pavucontrol
-# >>> i3-resurrect-bindings:start >>>
-bindsym $mod+Shift+F9 exec --no-startup-id $i3_save_default_workspaces
-bindsym $mod+Shift+F10 exec --no-startup-id $i3_restore_default_workspaces
-bindsym $mod+control+1 exec --no-startup-id $i3_resurrect_restore_ws 1
-bindsym $mod+control+2 exec --no-startup-id $i3_resurrect_restore_ws 2
-bindsym $mod+control+3 exec --no-startup-id $i3_resurrect_restore_ws 3
-bindsym $mod+control+4 exec --no-startup-id $i3_resurrect_restore_ws 4
-bindsym $mod+control+5 exec --no-startup-id $i3_resurrect_restore_ws 5
-bindsym $mod+control+6 exec --no-startup-id $i3_resurrect_restore_ws 6
-bindsym $mod+control+7 exec --no-startup-id $i3_resurrect_restore_ws 7
-bindsym $mod+control+8 exec --no-startup-id $i3_resurrect_restore_ws 8
-bindsym $mod+control+9 exec --no-startup-id $i3_resurrect_restore_ws 9
-bindsym $mod+control+0 exec --no-startup-id $i3_resurrect_restore_ws 0
-bindsym $mod+control+shift+1 exec --no-startup-id $i3_resurrect_save_ws 1
-bindsym $mod+control+shift+2 exec --no-startup-id $i3_resurrect_save_ws 2
-bindsym $mod+control+shift+3 exec --no-startup-id $i3_resurrect_save_ws 3
-bindsym $mod+control+shift+4 exec --no-startup-id $i3_resurrect_save_ws 4
-bindsym $mod+control+shift+5 exec --no-startup-id $i3_resurrect_save_ws 5
-bindsym $mod+control+shift+6 exec --no-startup-id $i3_resurrect_save_ws 6
-bindsym $mod+control+shift+7 exec --no-startup-id $i3_resurrect_save_ws 7
-bindsym $mod+control+shift+8 exec --no-startup-id $i3_resurrect_save_ws 8
-bindsym $mod+control+shift+9 exec --no-startup-id $i3_resurrect_save_ws 9
-bindsym $mod+control+shift+0 exec --no-startup-id $i3_resurrect_save_ws 0
-# <<< i3-resurrect-bindings:end <<<
-# >>> i3-tree-inspector-bind:start >>>
+# >>> sway-tree-inspector-bind:start >>>
 # Tree inspector notes:
 # - "i3:" titles are synthetic internal container names.
 # - h/v/t/s are split-h, split-v, tabbed, and stacked container markers.
 # - read the string conceptually inside-out (leaf -> root), even though output is ws -> ... -> leaf.
-bindsym $mod+F12 exec --no-startup-id $i3_tree_path
-# <<< i3-tree-inspector-bind:end <<<
+bindsym $mod+F12 exec --no-startup-id $sway_tree_path
+# <<< sway-tree-inspector-bind:end <<<
 # force new local windows in the current workspace
-bindsym $mod+Shift+f exec --no-startup-id $i3_spawn_here firefox
-bindsym $mod+Shift+c exec --no-startup-id $i3_spawn_here code
-bindsym $mod+Shift+t exec --no-startup-id $i3_spawn_here terminal
-bindsym $mod+Shift+d exec --no-startup-id $i3_spawn_here thunar
+bindsym $mod+Shift+f exec --no-startup-id $sway_spawn_here firefox
+bindsym $mod+Shift+c exec --no-startup-id $sway_spawn_here code
+bindsym $mod+Shift+t exec --no-startup-id $sway_spawn_here terminal
+bindsym $mod+Shift+d exec --no-startup-id $sway_spawn_here thunar
 
 # screenshots
 # Mod+Shift+S  → select area and copy to clipboard.
@@ -174,9 +145,9 @@ bindsym $mod+Shift+s exec --no-startup-id grimshot --notify copy area
 bindsym $mod+Shift+Mod1+s exec --no-startup-id sh -lc 'mkdir -p "$HOME/Pictures/Screenshots"; grimshot --notify save area "$HOME/Pictures/Screenshots/$(date +%Y-%m-%d_%H-%M-%S).png"'
 
 # lock screen (Super+;)
-bindsym $mod+semicolon exec --no-startup-id $i3_lock_cmd
+bindsym $mod+semicolon exec --no-startup-id loginctl lock-session
 # lid: turn off internal display, only lock if no HDMI connected
-bindswitch lid:on exec sh -c "swaymsg output eDP-1 dpms off; [ \"$(cat /sys/class/drm/card1-HDMI-A-1/status)\" != connected ] && i3-lock"
+bindswitch lid:on exec sh -c "swaymsg output eDP-1 dpms off; [ \"$(cat /sys/class/drm/card1-HDMI-A-1/status)\" != connected ] && loginctl lock-session"
 bindswitch lid:off exec sh -c "swaymsg output eDP-1 dpms on"
 # hibernation (Mod4+F7) — two-step confirm with notification + sound
 bindsym Mod4+F7 exec --no-startup-id hibernate-confirm
@@ -225,16 +196,16 @@ mode "tree" {
     bindsym a floating toggle
 
     # local sibling spawns (horizontal)
-    bindsym t split h; exec --no-startup-id $i3_spawn_here terminal; mode "default"
-    bindsym f split h; exec --no-startup-id $i3_spawn_here firefox; mode "default"
-    bindsym c split h; exec --no-startup-id $i3_spawn_here code; mode "default"
-    bindsym d split h; exec --no-startup-id $i3_spawn_here thunar; mode "default"
+    bindsym t split h; exec --no-startup-id $sway_spawn_here terminal; mode "default"
+    bindsym f split h; exec --no-startup-id $sway_spawn_here firefox; mode "default"
+    bindsym c split h; exec --no-startup-id $sway_spawn_here code; mode "default"
+    bindsym d split h; exec --no-startup-id $sway_spawn_here thunar; mode "default"
 
     # local sibling spawns (vertical)
-    bindsym Shift+t split v; exec --no-startup-id $i3_spawn_here terminal; mode "default"
-    bindsym Shift+f split v; exec --no-startup-id $i3_spawn_here firefox; mode "default"
-    bindsym Shift+c split v; exec --no-startup-id $i3_spawn_here code; mode "default"
-    bindsym Shift+d split v; exec --no-startup-id $i3_spawn_here thunar; mode "default"
+    bindsym Shift+t split v; exec --no-startup-id $sway_spawn_here terminal; mode "default"
+    bindsym Shift+f split v; exec --no-startup-id $sway_spawn_here firefox; mode "default"
+    bindsym Shift+c split v; exec --no-startup-id $sway_spawn_here code; mode "default"
+    bindsym Shift+d split v; exec --no-startup-id $sway_spawn_here thunar; mode "default"
 
     bindsym Escape mode "default"
     bindsym Return mode "default"

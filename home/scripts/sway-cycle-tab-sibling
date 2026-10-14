@@ -13,22 +13,22 @@ from typing import Any
 LAYOUTS = {"tabbed", "stacked"}
 
 
-def run_i3_json(command: str) -> Any:
+def run_sway_json(command: str) -> Any:
     proc = subprocess.run(
-        ["i3-msg", "-t", command],
+        ["swaymsg", "-t", command],
         check=False,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
     )
     if proc.returncode != 0:
-        raise RuntimeError(proc.stderr.strip() or f"i3-msg -t {command} failed")
+        raise RuntimeError(proc.stderr.strip() or f"swaymsg -t {command} failed")
     return json.loads(proc.stdout)
 
 
 def focus_con_id(con_id: int) -> None:
     subprocess.run(
-        ["i3-msg", f"[con_id={con_id}] focus"],
+        ["swaymsg", f"[con_id={con_id}] focus"],
         check=False,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
@@ -76,7 +76,7 @@ def main() -> int:
     parser.add_argument("--reverse", action="store_true")
     args = parser.parse_args()
 
-    tree = run_i3_json("get_tree")
+    tree = run_sway_json("get_tree")
     path = find_focused_path(tree)
     if not path:
         return 1
@@ -93,5 +93,5 @@ if __name__ == "__main__":
     try:
         raise SystemExit(main())
     except RuntimeError as exc:
-        print(f"i3-cycle-tab-sibling: {exc}", file=sys.stderr)
+        print(f"sway-cycle-tab-sibling: {exc}", file=sys.stderr)
         raise SystemExit(1)

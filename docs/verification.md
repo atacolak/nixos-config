@@ -51,8 +51,22 @@ swaymsg -s /run/user/1000/sway-ipc.*.sock reload
 ## key scripts
 
 ```bash
-command -v kitty-shade task-terminal audio-toggle audio-input-toggle wmutil i3-spawn-here sway-kill-clean handy
+command -v kitty-shade task-terminal audio-toggle audio-input-toggle wmutil sway-spawn-here swaylock swayidle handy
+systemctl --user status swayidle.service
+systemctl --user status sway-session.target
+pgrep -a swayidle
 ```
+
+After activating this configuration, log out and back into Sway once so the
+old compositor-spawned swayidle process exits. Expect exactly one swayidle
+process, owned by the systemd user unit. Verify Super+; locks once and unlocks
+once; then test idle locking, suspend/resume, and the laptop lid with/without
+an external display.
+
+For the tree behavior, test nested splits/tabbed/stacked layouts and close
+windows with Super+q. There should be no resurrection placeholders and no
+post-kill relocation to the workspace root. Record `swaymsg -t get_tree`
+before/after if Sway itself retains an unexpected container.
 
 ## kmonad keyboard
 

@@ -1,6 +1,10 @@
 { config, pkgs, lib, inputs, ... }:
 
 let
+  swayLockCommand = "${pkgs.swaylock}/bin/swaylock -f -c 000000";
+  swayDisplayOff = "${pkgs.sway}/bin/swaymsg 'output * power off'";
+  swayDisplayOn = "${pkgs.sway}/bin/swaymsg 'output * power on'";
+
   # yt-dlp breaks whenever a site changes, so its version must not be frozen by
   # the nixpkgs rev in flake.lock. The flake input "yt-dlp" points at upstream's
   # release asset URL (releases/latest/download/yt-dlp.tar.gz), which always
@@ -62,11 +66,6 @@ let
 
   # handy: pkgs.handy from nixpkgs (drops AppImage requireFile)
 
-  swayKillClean = pkgs.writeScriptBin "sway-kill-clean" ''
-    #!${pkgs.python3}/bin/python3
-    ${builtins.readFile ./scripts/sway-kill-clean}
-  '';
-
   handySwayStart = pkgs.writeShellApplication {
     name = "handy-sway-start";
     runtimeInputs = [ pkgs.jq pkgs.handy ];
@@ -77,18 +76,6 @@ let
     #!${pkgs.python3}/bin/python3
     ${builtins.readFile ./scripts/wmutil}
   '';
-
-  swayI3Msg = pkgs.writeShellApplication {
-    name = "i3-msg";
-    runtimeInputs = with pkgs; [ sway ];
-    text = builtins.readFile ./scripts/i3-msg;
-  };
-
-  swayI3Lock = pkgs.writeShellApplication {
-    name = "i3-lock";
-    runtimeInputs = with pkgs; [ swaylock ];
-    text = builtins.readFile ./scripts/i3-lock;
-  };
 
   firefoxSession = pkgs.writeShellApplication {
     name = "firefox-session";
@@ -102,49 +89,20 @@ let
     text = builtins.readFile ./scripts/cloak-session;
   };
 
-  i3CycleTabSibling = pkgs.writeScriptBin "i3-cycle-tab-sibling" ''
+  swayCycleTabSibling = pkgs.writeScriptBin "sway-cycle-tab-sibling" ''
     #!${pkgs.python3}/bin/python3
-    ${builtins.readFile ./scripts/i3-cycle-tab-sibling}
+    ${builtins.readFile ./scripts/sway-cycle-tab-sibling}
   '';
 
-  i3SpawnHere = pkgs.writeScriptBin "i3-spawn-here" ''
+  swaySpawnHere = pkgs.writeScriptBin "sway-spawn-here" ''
     #!${pkgs.python3}/bin/python3
-    ${builtins.readFile ./scripts/i3-spawn-here}
+    ${builtins.readFile ./scripts/sway-spawn-here}
   '';
 
-  i3TreePath = pkgs.writeScriptBin "i3-tree-path" ''
+  swayTreePath = pkgs.writeScriptBin "sway-tree-path" ''
     #!${pkgs.python3}/bin/python3
-    ${builtins.readFile ./scripts/i3-tree-path}
+    ${builtins.readFile ./scripts/sway-tree-path}
   '';
-
-  i3PruneFirefoxPrograms = pkgs.writeScriptBin "i3-resurrect-prune-firefox-programs" ''
-    #!${pkgs.python3}/bin/python3
-    ${builtins.readFile ./scripts/i3-resurrect-prune-firefox-programs}
-  '';
-
-  i3SaveDefaultWorkspaces = pkgs.writeShellApplication {
-    name = "i3-save-default-workspaces";
-    runtimeInputs = [ pkgs.i3-resurrect i3PruneFirefoxPrograms ];
-    text = builtins.readFile ./scripts/i3-save-default-workspaces;
-  };
-
-  i3RestoreDefaultWorkspaces = pkgs.writeShellApplication {
-    name = "i3-restore-default-workspaces";
-    runtimeInputs = [ pkgs.i3-resurrect i3PruneFirefoxPrograms ];
-    text = builtins.readFile ./scripts/i3-restore-default-workspaces;
-  };
-
-  i3ResurrectSaveWorkspace = pkgs.writeShellApplication {
-    name = "i3-resurrect-save-workspace-confirm";
-    runtimeInputs = with pkgs; [ i3-resurrect i3PruneFirefoxPrograms libnotify libcanberra-gtk3 pulseaudio alsa-utils ];
-    text = builtins.readFile ./scripts/i3-resurrect-save-workspace-confirm;
-  };
-
-  i3ResurrectRestoreWorkspace = pkgs.writeShellApplication {
-    name = "i3-resurrect-restore-workspace-confirm";
-    runtimeInputs = with pkgs; [ i3-resurrect i3PruneFirefoxPrograms libnotify libcanberra-gtk3 pulseaudio alsa-utils ];
-    text = builtins.readFile ./scripts/i3-resurrect-restore-workspace-confirm;
-  };
 
   hibernateConfirm = pkgs.writeShellApplication {
     name = "hibernate-confirm";
@@ -186,6 +144,29 @@ in
 
   programs.home-manager.enable = true;
 
+  # The compositor owns layouts; logind + one user service own locking/idleness.
+  # This replaces the old exec_always shell process and i3-lock wrapper.
+  services.swayidle = {
+    enable = true;
+    systemdTargets = [ "sway-session.target" ];
+    timeouts = [
+      {
+        timeout = 600;
+        command = swayLockCommand;
+      }
+      {
+        timeout = 630;
+        command = swayDisplayOff;
+        resumeCommand = swayDisplayOn;
+      }
+    ];
+    events = {
+      lock = swayLockCommand;
+      before-sleep = swayLockCommand;
+      after-resume = swayDisplayOn;
+    };
+  };
+
   xdg.enable = true;
 
   home.packages = with pkgs; [
@@ -212,8 +193,6 @@ in
     swaynotificationcenter
     xdg-utils
     i3status-rust
-    swayidle
-    swaylock
     sway-contrib.grimshot
     bibata-cursors
     papirus-icon-theme
@@ -248,11 +227,8 @@ in
     taskTerminal
     audioToggle
     audioInputToggle
-    swayKillClean
 
     swayWmutil
-    swayI3Msg
-    swayI3Lock
     firefoxSession
     cloakSession
     steam-run
@@ -261,14 +237,9 @@ in
     nwg-displays
     calibre
     mullvad-browser
-    i3CycleTabSibling
-    i3SpawnHere
-    i3TreePath
-    i3PruneFirefoxPrograms
-    i3SaveDefaultWorkspaces
-    i3RestoreDefaultWorkspaces
-    i3ResurrectSaveWorkspace
-    i3ResurrectRestoreWorkspace
+    swayCycleTabSibling
+    swaySpawnHere
+    swayTreePath
     hibernateConfirm
     rhtml
     mullvadSg

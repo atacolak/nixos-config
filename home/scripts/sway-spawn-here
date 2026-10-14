@@ -35,20 +35,20 @@ for key, spec in APP_SPECS.items():
         ALIAS_TO_APP[alias] = key
 
 
-def i3_quote(value):
+def sway_quote(value):
     escaped = str(value).replace("\\", "\\\\").replace('"', '\\"')
     return f'"{escaped}"'
 
 
-def run_i3(command):
+def run_sway(command):
     proc = subprocess.run(
-        ["i3-msg", command],
+        ["swaymsg", command],
         check=False,
         capture_output=True,
         text=True,
     )
     if proc.returncode != 0:
-        raise RuntimeError(proc.stderr.strip() or f"i3-msg failed: {command}")
+        raise RuntimeError(proc.stderr.strip() or f"swaymsg failed: {command}")
     if proc.stdout.strip():
         try:
             payload = json.loads(proc.stdout)
@@ -63,7 +63,7 @@ def run_i3(command):
 
 def get_tree():
     proc = subprocess.run(
-        ["i3-msg", "-t", "get_tree"],
+        ["swaymsg", "-t", "get_tree"],
         check=False,
         capture_output=True,
         text=True,
@@ -78,7 +78,7 @@ def get_tree():
 
 def get_focused_workspace_name():
     proc = subprocess.run(
-        ["i3-msg", "-t", "get_workspaces"],
+        ["swaymsg", "-t", "get_workspaces"],
         check=False,
         capture_output=True,
         text=True,
@@ -158,12 +158,12 @@ def choose_candidate(candidates, target_workspace):
 
 def usage():
     apps = ", ".join(sorted(APP_SPECS.keys()))
-    print(f"Usage: i3-spawn-here <app>\nAvailable apps: {apps}", file=sys.stderr)
+    print(f"Usage: sway-spawn-here <app>\nAvailable apps: {apps}", file=sys.stderr)
 
 
 def main():
-    if not shutil.which("i3-msg"):
-        print("i3-spawn-here: i3-msg is not in PATH", file=sys.stderr)
+    if not shutil.which("swaymsg"):
+        print("sway-spawn-here: swaymsg is not in PATH", file=sys.stderr)
         return 1
     if len(sys.argv) != 2:
         usage()
@@ -172,7 +172,7 @@ def main():
     alias = sys.argv[1].strip().lower()
     app_key = ALIAS_TO_APP.get(alias)
     if not app_key:
-        print(f"i3-spawn-here: unsupported app '{sys.argv[1]}'", file=sys.stderr)
+        print(f"sway-spawn-here: unsupported app '{sys.argv[1]}'", file=sys.stderr)
         usage()
         return 1
 
@@ -181,7 +181,7 @@ def main():
     match_terms = spec["match_terms"]
 
     if not shutil.which(command[0]):
-        print(f"i3-spawn-here: launcher not found: {command[0]}", file=sys.stderr)
+        print(f"sway-spawn-here: launcher not found: {command[0]}", file=sys.stderr)
         return 1
 
     try:
@@ -193,7 +193,7 @@ def main():
             if w["id"] is not None and matches_window(w, match_terms)
         }
     except RuntimeError as exc:
-        print(f"i3-spawn-here: {exc}", file=sys.stderr)
+        print(f"sway-spawn-here: {exc}", file=sys.stderr)
         return 1
 
     subprocess.Popen(command, start_new_session=True)
@@ -211,22 +211,22 @@ def main():
         if candidate:
             try:
                 if candidate["workspace"] != target_workspace:
-                    run_i3(
-                        f"[con_id={candidate['id']}] move container to workspace {i3_quote(target_workspace)}"
+                    run_sway(
+                        f"[con_id={candidate['id']}] move container to workspace {sway_quote(target_workspace)}"
                     )
-                run_i3(f"workspace {i3_quote(target_workspace)}")
-                run_i3(f"[con_id={candidate['id']}] focus")
+                run_sway(f"workspace {sway_quote(target_workspace)}")
+                run_sway(f"[con_id={candidate['id']}] focus")
                 return 0
             except RuntimeError as exc:
-                print(f"i3-spawn-here: {exc}", file=sys.stderr)
+                print(f"sway-spawn-here: {exc}", file=sys.stderr)
                 return 1
 
     try:
-        run_i3(f"workspace {i3_quote(target_workspace)}")
+        run_sway(f"workspace {sway_quote(target_workspace)}")
     except Exception:
         pass
     print(
-        f"i3-spawn-here: timed out waiting for a new '{app_key}' window to appear",
+        f"sway-spawn-here: timed out waiting for a new '{app_key}' window to appear",
         file=sys.stderr,
     )
     return 1

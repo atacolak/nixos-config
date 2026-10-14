@@ -20,8 +20,9 @@
   # Client mesh (wt0, UDP 51820).
   # `enable` ≡ clients.default { port = 51820; interface = "wt0"; hardened = false; }
   # netbird-ui wrapper is installed automatically (xserver/GDM is on).
-  # Login after switch: `netbird up` (setup key / SSO). Do not put keys in nix.
+  # management url is not a secret. setup keys / sso still via `netbird up`, never nix.
   services.netbird.enable = true;
+  services.netbird.clients.default.config.ManagementURL = "https://net.colak.sh:443";
 
   programs.mosh.enable = true;
   services.openssh.enable = true;

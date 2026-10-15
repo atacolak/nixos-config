@@ -6,6 +6,7 @@
     ./bluetooth.nix
     ./keyboard.nix
     ./lid.nix
+    ./mullvad.nix
     ../../modules/common.nix
   ];
 

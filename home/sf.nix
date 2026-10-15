@@ -323,6 +323,7 @@ in
     # clipboard sync over tailscale — push/pull between sfnix and ata-ubuntu
     clip-push = "wl-paste | ssh sfub \"DISPLAY=:1 xclip -i -selection clipboard\"";
     clip-pull = "ssh sfub \"DISPLAY=:1 xclip -o -selection clipboard 2>/dev/null\" | wl-copy";
+    omp = "/home/sf/.local/bin/omp";
   };
 
   home.sessionVariables = {

@@ -13,6 +13,7 @@
   # Keep GDM as the greeter/login manager, but do not expose a GNOME desktop
   # session by default. Sway is the intended daily driver.
   services.displayManager.gdm.enable = true;
+  services.desktopManager.plasma6.enable = true;
 
   # The upstream sway.desktop says `Exec=sway`, and the display-manager unit
   # runs with a narrow store PATH, so put sway's bin on that PATH instead of
@@ -60,7 +61,7 @@
       };
     };
     extraPortals = with pkgs; [ xdg-desktop-portal-gtk ];
-    config.common.default = [ "wlr" "gtk" ];
+    config.sway.default = pkgs.lib.mkForce [ "wlr" "gtk" ];
   };
 
   environment.sessionVariables.NIXOS_OZONE_WL = "1";

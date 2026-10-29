@@ -206,6 +206,8 @@ let
   };
 in
 {
+  imports = [ ./observeos-kwin-tree.nix ];
+
   home.username = "sf";
   home.homeDirectory = "/home/sf";
   home.stateVersion = "26.05";

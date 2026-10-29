@@ -1,6 +1,8 @@
 { pkgs, ... }:
 
 {
+  imports = [ ./observeos-kwin-tree.nix ];
+
   services.xserver = {
     enable = true;
 

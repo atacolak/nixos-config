@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+NoDisplay=true
+Name=observeOS _launch Meta+Ctrl+Right
+Exec=observeos-snap right-third
+X-KDE-GlobalAccel-CommandShortcut=true
+X-KDE-Shortcuts=Meta+Ctrl+Right
+StartupNotify=false

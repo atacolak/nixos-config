@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+NoDisplay=true
+Name=observeOS _launch Meta+Shift+2
+Exec=kde-cycle-or-run send-and-follow 2
+X-KDE-GlobalAccel-CommandShortcut=true
+X-KDE-Shortcuts=Meta+Shift+2
+StartupNotify=false

@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+NoDisplay=true
+Name=observeOS _launch Meta+D
+Exec=kde-cycle-or-run cycle-or-run --class thunar --scope current --launch thunar
+X-KDE-GlobalAccel-CommandShortcut=true
+X-KDE-Shortcuts=Meta+D
+StartupNotify=false

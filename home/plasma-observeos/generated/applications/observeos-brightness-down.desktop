@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+NoDisplay=true
+Name=observeOS _launch XF86MonBrightnessDown
+Exec=brightnessctl set 5%-
+X-KDE-GlobalAccel-CommandShortcut=true
+X-KDE-Shortcuts=XF86MonBrightnessDown
+StartupNotify=false

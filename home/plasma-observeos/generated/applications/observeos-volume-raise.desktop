@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+NoDisplay=true
+Name=observeOS _launch XF86AudioRaiseVolume
+Exec=wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ 5%+
+X-KDE-GlobalAccel-CommandShortcut=true
+X-KDE-Shortcuts=XF86AudioRaiseVolume
+StartupNotify=false

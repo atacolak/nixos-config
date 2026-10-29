@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+NoDisplay=true
+Name=observeOS _launch Meta+C
+Exec=kde-cycle-or-run cycle-or-run --class code --scope current --launch code
+X-KDE-GlobalAccel-CommandShortcut=true
+X-KDE-Shortcuts=Meta+C
+StartupNotify=false

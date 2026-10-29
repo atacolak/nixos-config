@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+NoDisplay=true
+Name=observeOS _launch Meta+R
+Exec=observeos-blocked --binding Meta+R --reason resize-mode
+X-KDE-GlobalAccel-CommandShortcut=true
+X-KDE-Shortcuts=Meta+R
+StartupNotify=false

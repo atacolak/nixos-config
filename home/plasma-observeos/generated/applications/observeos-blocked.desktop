@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+NoDisplay=true
+Name=observeOS blocked tiling action
+Exec=observeos-blocked
+X-KDE-GlobalAccel-CommandShortcut=true
+StartupNotify=false

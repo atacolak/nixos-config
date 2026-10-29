@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+NoDisplay=true
+Name=observeOS _launch XF86AudioNext
+Exec=playerctl next
+X-KDE-GlobalAccel-CommandShortcut=true
+X-KDE-Shortcuts=XF86AudioNext
+StartupNotify=false

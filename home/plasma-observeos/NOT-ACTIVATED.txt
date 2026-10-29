@@ -1,0 +1,14 @@
+observeOS plasma shortcut module — NOT ACTIVATED
+
+placed in sfnix isolated worktree nixos-config-observeos-plasma only.
+do not import from dirty ~/nixos-config.
+do not set observeos.plasmaShortcuts.enable = true on the live Sway user.
+do not copy kglobalshortcutsrc into ~/.config by hand.
+
+source: observeOS plasma-keybinds/generated from obs-36o.2.2 (locally tested).
+kmonad Caps->Super stays in hosts/laptop/keyboard.nix; this module does not remap Caps.
+
+to activate later (isolated candidate only, never live Sway):
+  imports = [ ./plasma-observeos/plasma-shortcuts.nix ];
+  observeos.plasmaShortcuts.enable = true;
+physical P0-K remains NOT RUN until operator at the seat.

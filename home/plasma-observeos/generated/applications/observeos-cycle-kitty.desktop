@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+NoDisplay=true
+Name=observeOS _launch Meta+T
+Exec=kde-cycle-or-run cycle-or-run --class kitty --scope current --launch kitty-shade
+X-KDE-GlobalAccel-CommandShortcut=true
+X-KDE-Shortcuts=Meta+T
+StartupNotify=false

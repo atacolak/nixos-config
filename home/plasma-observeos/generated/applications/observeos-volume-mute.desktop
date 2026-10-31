@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+NoDisplay=true
+Name=observeOS _launch XF86AudioMute
+Exec=wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle
+X-KDE-GlobalAccel-CommandShortcut=true
+X-KDE-Shortcuts=XF86AudioMute
+StartupNotify=false

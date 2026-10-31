@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+NoDisplay=true
+Name=observeOS _launch Meta+F6
+Exec=audio-toggle
+X-KDE-GlobalAccel-CommandShortcut=true
+X-KDE-Shortcuts=Meta+F6
+StartupNotify=false

@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+NoDisplay=true
+Name=observeOS _launch Meta+F
+Exec=kde-cycle-or-run cycle-or-run --class firefox --scope current --launch firefox-session --new-window
+X-KDE-GlobalAccel-CommandShortcut=true
+X-KDE-Shortcuts=Meta+F
+StartupNotify=false

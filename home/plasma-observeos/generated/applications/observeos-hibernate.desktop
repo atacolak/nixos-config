@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+NoDisplay=true
+Name=observeOS hibernate-confirm Meta+F7
+Exec=hibernate-confirm
+X-KDE-GlobalAccel-CommandShortcut=true
+X-KDE-Shortcuts=Meta+F7
+StartupNotify=false

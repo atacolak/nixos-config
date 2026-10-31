@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+set -euo pipefail
+# isolated stub: reserved chord whose real implementation is obs_tiling.
+echo "observeos-blocked: tiling-owned action not implemented here: $*" >&2
+exit 3

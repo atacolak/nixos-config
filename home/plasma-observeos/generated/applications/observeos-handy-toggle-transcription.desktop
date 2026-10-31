@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+NoDisplay=true
+Name=observeOS _launch Ctrl+Space
+Exec=handy --toggle-transcription
+X-KDE-GlobalAccel-CommandShortcut=true
+X-KDE-Shortcuts=Ctrl+Space
+StartupNotify=false

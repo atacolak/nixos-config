@@ -1,0 +1,19 @@
+{
+    "KPackageStructure": "KWin/Script",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "observeOS"
+            }
+        ],
+        "Description": "Nested split/tab/stack tree controller",
+        "Icon": "preferences-system-windows",
+        "Id": "observeos-tree",
+        "License": "MIT",
+        "Name": "observeOS Tree",
+        "Version": "0.1.0"
+    },
+    "X-Plasma-API": "declarativescript",
+    "X-Plasma-API-Minimum-Version": "6.0",
+    "X-Plasma-MainScript": "ui/main.qml"
+}

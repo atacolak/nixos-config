@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+NoDisplay=true
+Name=observeOS _launch Alt+Tab
+Exec=observeos-blocked --binding Alt+Tab --reason tab-sibling
+X-KDE-GlobalAccel-CommandShortcut=true
+X-KDE-Shortcuts=Alt+Tab
+StartupNotify=false

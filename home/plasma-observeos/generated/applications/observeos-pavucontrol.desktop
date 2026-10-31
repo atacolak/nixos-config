@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+NoDisplay=true
+Name=observeOS pavucontrol Meta+F10
+Exec=pavucontrol
+X-KDE-GlobalAccel-CommandShortcut=true
+X-KDE-Shortcuts=Meta+F10
+StartupNotify=false

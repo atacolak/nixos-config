@@ -19,22 +19,26 @@ usage() {
   cat <<'EOF'
 nixrebuild — sudo nixos-rebuild switch --flake ~/nixos-config#{laptop,desktop}
 
-  nixrebuild           eval, then switch
-  nixrebuild --eval    eval only, no switch
-  nixrebuild --dry     nixos-rebuild dry-run
+  nixrebuild           password first, then eval, then switch
+  nixrebuild --eval    dry-run: eval only, no sudo, no switch
+  nixrebuild --check   alias for --eval
+  nixrebuild --dry     password first, then nixos-rebuild dry-run
   nixrebuild --help
 
 attr is sfnix→laptop, sfub→desktop. override with NIXREBUILD_ATTR.
 refuses to switch if the evaluated config drops services.netbird.enable.
 refuses to switch the other machine's attr on this hostname.
+skips switch if eval matches the running system.
 that is how gen 111 made the box dark.
+
+agents: use `nixrebuild --eval` as the dry-run. do not unattended switch.
 EOF
 }
 
 MODE="switch"
 case "${1:-}" in
   -h|--help) usage; exit 0 ;;
-  --eval|--eval-only) MODE="eval" ;;
+  --eval|--eval-only|--check) MODE="eval" ;;
   --dry|--dry-run) MODE="dry" ;;
   "") MODE="switch" ;;
   *)
@@ -42,7 +46,6 @@ case "${1:-}" in
     exit 2
     ;;
 esac
-
 
 if [[ -z "$ATTR" ]]; then
   echo "!! no flake attr for hostname $(hostname). set NIXREBUILD_ATTR=laptop|desktop" >&2
@@ -66,15 +69,61 @@ fi
 cd "$FLAKE"
 
 echo ">> flake $FLAKE#$ATTR"
-echo ">> current $(readlink /run/current-system)"
+if [[ -e /run/current-system ]]; then
+  echo ">> current $(readlink /run/current-system)"
+fi
 git status --short || true
 
-untracked_nix="$(git ls-files --others --exclude-standard -- '*.nix' 'flake.lock' 'home/scripts/*' 'pkgs/*' || true)"
+untracked_nix="$(git ls-files --others --exclude-standard -- \
+  '*.nix' 'flake.lock' \
+  'home' 'home/**' \
+  'modules' 'modules/**' \
+  'hosts' 'hosts/**' \
+  'pkgs' 'pkgs/**' \
+  'files' 'files/**' \
+  || true)"
 if [[ -n "$untracked_nix" ]]; then
   echo "!! untracked nix-read files (flake cannot see these):" >&2
   printf '%s\n' "$untracked_nix" >&2
-  echo "!! git add them, then re-run nixrebuild" >&2
+  echo "!! git add them, then re-run nixrebuild --eval" >&2
   exit 1
+fi
+
+SUDO_KEEP=""
+stop_sudo_keep() {
+  if [[ -n "${SUDO_KEEP}" ]]; then
+    kill "${SUDO_KEEP}" 2>/dev/null || true
+    wait "${SUDO_KEEP}" 2>/dev/null || true
+    SUDO_KEEP=""
+  fi
+}
+
+ask_sudo_now() {
+  if [[ ! -t 0 || ! -t 2 ]]; then
+    echo "!! sudo needs a real terminal (this sway session has no polkit popup)" >&2
+    echo "!! run nixrebuild from kitty, not a password-less ssh" >&2
+    exit 1
+  fi
+  echo ">> sudo password now (before eval)"
+  sudo -v
+  (
+    while true; do
+      sleep 50
+      sudo -n true 2>/dev/null || exit 0
+      sudo -v >/dev/null 2>&1 || exit 0
+    done
+  ) &
+  SUDO_KEEP=$!
+  trap stop_sudo_keep EXIT
+}
+
+if [[ "$MODE" != "eval" ]]; then
+  ask_sudo_now
+fi
+
+if [[ "$MODE" == "switch" ]]; then
+  echo ">> flake update yt-dlp"
+  nix flake update yt-dlp
 fi
 
 echo ">> eval netbird"
@@ -91,17 +140,27 @@ toplevel="$(nix eval --raw ".#nixosConfigurations.${ATTR}.config.system.build.to
 echo ">> $toplevel"
 
 if [[ "$MODE" == "eval" ]]; then
-  echo ">> eval-only, not switching"
+  echo ">> dry-run ok (eval only, not switching)"
   exit 0
 fi
 
 if [[ "$MODE" == "dry" ]]; then
   echo ">> dry-run"
-  exec sudo nixos-rebuild dry-run --flake "${FLAKE}#${ATTR}"
+  sudo nixos-rebuild dry-run --flake "${FLAKE}#${ATTR}"
+  stop_sudo_keep
+  exit 0
 fi
 
-echo ">> switch (sudo)"
+current="$(readlink /run/current-system || true)"
+if [[ -n "$current" && "$toplevel" == "$current" ]]; then
+  echo ">> already running this build, not switching"
+  stop_sudo_keep
+  exit 0
+fi
+
+echo ">> switch"
 sudo nixos-rebuild switch --flake "${FLAKE}#${ATTR}"
+stop_sudo_keep
 echo ">> now $(readlink /run/current-system)"
 systemctl --no-pager is-active home-manager-sf.service || true
 systemctl --no-pager is-active netbird || true

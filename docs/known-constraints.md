@@ -14,18 +14,19 @@ these are facts future agents should preserve unless explicitly asked to retest 
 - desktop install target is the kingston sata ssd by-id `ata-KINGSTON_SA400S37240G_50026B7785D7AA0E`. ubuntu lives on the samsung nvme. do not format the samsung in the desktop install runbook.
 
 ## flakes see tracked files only
-
 if a nix expression imports or reads a new file, that file must be tracked by git before `nix eval` can see it.
+
+this includes `home/files/**` (toml, scripts, images), not just `*.nix`.
 
 usually:
 
 ```bash
 git add path/to/new-file
-nix eval --raw .#nixosConfigurations.laptop.config.system.build.toplevel
-nix eval --raw .#nixosConfigurations.desktop.config.system.build.toplevel
+nixrebuild --eval
 ```
 
 if eval says a path is not tracked, do not debug nixpkgs. add the file.
+`nixrebuild --eval` is the agent dry-run. it must refuse untracked nix-read files.
 
 ## bluetooth hardware
 
@@ -150,3 +151,19 @@ userspace + nvidia open kernel module, not nouveau).
 
 in-app login FunCaptcha never finishes in Sober's webview. log in on
 roblox.com in firefox, then Play (opens `roblox-player://`).
+
+## browser-only mullvad
+
+`bmullvad` is the mullvad CLI for browsers only. it owns netns `vpn-sg`.
+identity is `~/.config/wireguard/sg.conf`; the peer comes from
+`~/.config/bmullvad/peer` (via `bmullvad relay set location`).
+default location is Amsterdam (`nl ams`). it is not system `mullvad` and it
+does not change host routing or tailscale.
+
+`cloak` and `mullvad-browser` join that netns at launch if it is up, else
+clearnet. firefox stays on the host net. there is no `mullvad-sg`.
+
+Cloak CDP is always host `127.0.0.1:9222`. when chrome is in `vpn-sg`,
+`vpn-netns-cdp` forwards that port into the netns. do not Funnel 9222.
+
+launch-time join only: `bmullvad connect` does not move windows already open.

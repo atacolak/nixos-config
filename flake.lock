@@ -63,8 +63,8 @@
     "yt-dlp": {
       "flake": false,
       "locked": {
-        "lastModified": 1787182328,
-        "narHash": "sha256-UYSTdBgNDcs/OKkVLr1TNsLcyd+1mZr+o7jP2KiTFFs=",
+        "lastModified": 1793053073,
+        "narHash": "sha256-ybkXpj2lWA0Tz/GJdtAX6zjSPtt1GqEBMnvfyJc+nT4=",
         "type": "tarball",
         "url": "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.tar.gz"
       },

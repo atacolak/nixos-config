@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# Launch-time join: run a command in vpn-sg when bmullvad is up, else host net.
+set -euo pipefail
+
+NSEXEC="${BMULLVAD_NSEXEC:-/etc/bmullvad/nsexec}"
+NS_PATH="${BMULLVAD_NS_PATH:-/var/run/netns/vpn-sg}"
+SUDO="${BMULLVAD_SUDO:-/run/wrappers/bin/sudo}"
+
+if [[ "${1:-}" == "--" ]]; then
+  shift
+fi
+
+if [[ $# -lt 1 ]]; then
+  echo "bmullvad-join: missing command" >&2
+  exit 2
+fi
+
+if [[ ! -e "${NS_PATH}" ]]; then
+  exec "$@"
+fi
+
+if [[ ! -x "${NSEXEC}" ]]; then
+  echo "bmullvad-join: netns is up but ${NSEXEC} missing; starting on clearnet" >&2
+  exec "$@"
+fi
+
+exec "${SUDO}" "${NSEXEC}" "${SUDO}" -u sf env \
+  HOME="${HOME}" \
+  USER="${USER}" \
+  LOGNAME="${LOGNAME:-${USER}}" \
+  WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-}" \
+  XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-}" \
+  DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-}" \
+  XDG_SESSION_TYPE="${XDG_SESSION_TYPE:-}" \
+  DISPLAY="${DISPLAY:-}" \
+  NIX_LD="${NIX_LD:-}" \
+  NIX_LD_LIBRARY_PATH="${NIX_LD_LIBRARY_PATH:-}" \
+  LD_LIBRARY_PATH="${LD_LIBRARY_PATH:-}" \
+  PATH="${PATH}" \
+  "$@"

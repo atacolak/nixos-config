@@ -10,17 +10,18 @@ This setup:
 
 | | |
 |---|---|
-| process | one Cloak window you launch from fuzzel ("Cloak") |
+| process | one Cloak window you launch from fuzzel ("Cloak") or `cloak` |
 | profile | `~/.cloakbrowser/profile` (cookies, logins, yours) |
-| CDP | `127.0.0.1:9222` every launch |
+| CDP | `127.0.0.1:9222` every launch (host loopback, even when chrome is in vpn-sg) |
 | agents | attach, scrape the tab you're on, click — same cookies |
 | firefox | stays human-only (`firefox-session`) |
+| vpn | joins `bmullvad` at launch if that connection is up; otherwise clearnet |
 
-Do not `--remote-debugging-port` on Firefox. Do not Funnel 9222.
+Do not `--remote-debugging-port` on Firefox. Do not Funnel 9222. See `docs/runbooks/bmullvad.md`.
 
 ## launch
 
-fuzzel → **Cloak**, or `cloak-session`. Binary: `~/.cloakbrowser/chromium-146.0.7680.177.5/chrome` (generic ELF via `programs.nix-ld`). Do **not** wrap with `steam-run` (missing nss/nspr). SwiftShader (`--use-angle=swiftshader`) because Mesa `libEGL.so.1` is not on nix-ld.
+fuzzel → **Cloak**, or `cloak`. Binary: `~/.cloakbrowser/chromium-146.0.7680.177.5/chrome` (generic ELF via `programs.nix-ld`). Do **not** wrap with `steam-run` (missing nss/nspr). SwiftShader (`--use-angle=swiftshader`) because Mesa `libEGL.so.1` is not on nix-ld.
 
 Prove CDP:
 
@@ -51,4 +52,6 @@ python3 -m daemon.main --worker sfnix-daily --cdp-url http://127.0.0.1:9222 --un
 ## rebuild
 
 `sudo nixos-rebuild switch --flake ~/nixos-config#laptop`
-then a **new** shell so `cloak-session` is the store copy without `steam-run`.
+then a **new** shell so `cloak` is the store copy without `steam-run`.
+
+`bmullvad connect` while Cloak is already on clearnet does not move that window. quit and `cloak` again to join.

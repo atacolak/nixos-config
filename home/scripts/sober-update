@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# Update Sober (Roblox player) from Flathub. system install needs sudo.
+set -euo pipefail
+
+APP=org.vinegarhq.Sober
+
+if ! command -v flatpak >/dev/null; then
+  echo "sober-update: flatpak missing" >&2
+  exit 1
+fi
+
+info() {
+  flatpak info "${APP}" 2>/dev/null | awk -F': ' '
+    /^[[:space:]]*Version:/ { v=$2 }
+    /^[[:space:]]*Runtime:/ { r=$2 }
+    END { if (v == "") exit 1; print v " (" r ")" }
+  '
+}
+
+before="$(info || true)"
+if [[ -z "${before}" ]]; then
+  echo "sober-update: ${APP} is not installed" >&2
+  exit 1
+fi
+
+echo "installed: ${before}"
+
+scope=( )
+if flatpak info --system "${APP}" >/dev/null 2>&1; then
+  scope=(--system)
+  echo "this is a system app. sudo will ask for your password."
+elif flatpak info --user "${APP}" >/dev/null 2>&1; then
+  scope=(--user)
+else
+  echo "sober-update: ${APP} not found as system or user install" >&2
+  exit 1
+fi
+
+if [[ "${scope[0]}" == "--system" ]]; then
+  sudo flatpak update -y "${scope[@]}" "${APP}"
+else
+  flatpak update -y "${scope[@]}" "${APP}"
+fi
+
+after="$(info || echo unknown)"
+echo "now: ${after}"
+
+if command -v notify-send >/dev/null; then
+  notify-send "Sober" "updated: ${before} -> ${after}" || true
+fi

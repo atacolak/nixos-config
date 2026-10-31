@@ -76,16 +76,22 @@ for nix or home-manager changes:
 2. make the smallest coherent change.
 3. if adding files that nix imports or reads, run `git add` before eval.
    - nix flakes cannot see untracked files. this is not optional.
-4. evaluate:
-   - `nix eval --raw .#nixosConfigurations.laptop.config.system.build.toplevel`
-   - `nix eval --raw .#nixosConfigurations.desktop.config.system.build.toplevel`
-     if the change can touch shared modules or home.
-5. switch only the machine you are on, after eval passes, unless the user explicitly says not to:
-   - on sfnix: `sudo nixos-rebuild switch --flake .#laptop`
-   - on sfub: `sudo nixos-rebuild switch --flake .#desktop`
+   - this includes `home/files/**`, not just `*.nix`. a new toml/script/jpg
+     sourced from home-manager is invisible until `git add`.
+4. dry-run. no sudo. this is the agent rebuild check:
+   - on sfnix: `nixrebuild --eval`
+   - `--eval` / `--check` eval toplevel and refuse untracked nix-read files.
+   - do not skip this. `nixrebuild --dry` is a sudo activation plan, not the
+     agent dry-run.
+   - if the change can touch shared modules or home, also:
+     `nix eval --raw .#nixosConfigurations.desktop.config.system.build.toplevel`
+5. switch only the machine you are on, after `--eval` passes, unless the user
+   explicitly says not to:
+   - on sfnix: `nixrebuild` (sudo)
+   - on sfub: `nixrebuild` (sudo)
    - never switch `#desktop` on sfnix or `#laptop` on sfub. `nixrebuild` refuses this.
 6. verify runtime behavior with commands from `docs/verification.md`.
-7. commit if the user asked for a commit.
+7. commit if the user asked for a commit. see commit messages below.
 8. summarize the git diff-level change and the verification performed.
 
 for docs-only changes:
@@ -96,6 +102,29 @@ for docs-only changes:
 4. commit if the user asked for a commit.
 
 never claim a nixos change worked just because the file was edited. a successful rebuild and runtime check are the evidence.
+
+## commit messages
+
+write like you are telling a person what changed on their computer.
+a non-engineer should get it. no conventional-commits, no ticket ids,
+no "refactor/chore/feat", no file-path dumps as the subject.
+
+subject: one short sentence, lowercase, what the machine does now.
+body (if needed): why, in plain words. what to do after, if anything
+(rebuild, new shell, reboot).
+
+good:
+- `let cloak use the browser vpn when it is on`
+- `stop herdr config from being overwritten by a store symlink`
+- `make nixrebuild --eval catch missing files before a switch`
+
+bad:
+- `feat(home): migrate xdg.configFile.herdr to source path`
+- `chore: update AGENTS.md and nixrebuild untracked glob`
+- `fix: SC2016 excludeShellChecks for bmullvad jq`
+
+if you cannot say it without jargon, you do not understand the change yet.
+do not commit until the user asked.
 
 ## ownership rules
 
@@ -147,6 +176,12 @@ use these before editing common areas:
 
 - `docs/runbooks/desktop-install.md`
   - install `#desktop` onto the kingston ssd. never the samsung ubuntu nvme.
+
+- `docs/runbooks/cloak.md`
+  - sfnix daily Cloak + localhost CDP 9222. do not Funnel.
+
+- `docs/runbooks/bmullvad.md`
+  - browser-only Mullvad connection. `cloak` / `mullvad-browser` join at launch.
 
 ## bluetooth warning
 
@@ -223,7 +258,7 @@ if a module cannot be described in one plain sentence, it is probably fake struc
 - do not manually replace `~/.config/sway/config`; home-manager owns it.
 - do not delete `hosts/laptop/bluetooth.nix` because the usb dongle workaround looks temporary.
 - do not put passwords, api keys, private ssh keys, tokens, or sudo passwords into nix files.
-- do not add untracked files and then run nix eval expecting flakes to see them.
+- do not add untracked files and then run nix eval expecting flakes to see them. `git add` first, including `home/files/**`.
 - do not claim a graphical setting works from an ssh tty without checking the actual runtime state where possible.
 - do not install Roblox via wine, grapejuice, vinegar, or proton. Sober only.
 - do not put a wifi psk, netbird setup key, or nvidia ICD hacks for the other gpu in this repo.

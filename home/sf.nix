@@ -59,6 +59,7 @@ let
   '';
 
   modernMinimalUiSounds = pkgs.callPackage ../pkgs/modern-minimal-ui-sounds.nix { };
+  herdrGui = pkgs.callPackage ../pkgs/herdr-gpui.nix { };
 
   # handy: pkgs.handy from nixpkgs (drops AppImage requireFile)
 
@@ -96,10 +97,35 @@ let
     text = builtins.readFile ./scripts/firefox-session;
   };
 
-  cloakSession = pkgs.writeShellApplication {
-    name = "cloak-session";
-    runtimeInputs = [ ];
-    text = builtins.readFile ./scripts/cloak-session;
+  bmullvadJoin = pkgs.writeShellApplication {
+    name = "bmullvad-join";
+    runtimeInputs = with pkgs; [ coreutils ];
+    text = builtins.readFile ./scripts/bmullvad-join;
+  };
+
+  bmullvad = pkgs.writeShellApplication {
+    name = "bmullvad";
+    excludeShellChecks = [ "SC2016" ];
+    runtimeInputs = with pkgs; [ coreutils wireguard-tools curl jq ];
+    text = ''
+      WG=${pkgs.wireguard-tools}/bin/wg
+      CURL=${lib.getExe pkgs.curl}
+      JQ=${lib.getExe pkgs.jq}
+    '' + builtins.readFile ./scripts/bmullvad;
+  };
+
+  cloak = pkgs.writeShellApplication {
+    name = "cloak";
+    runtimeInputs = [ bmullvadJoin pkgs.findutils pkgs.coreutils ];
+    text = builtins.readFile ./scripts/cloak;
+  };
+
+  mullvadBrowser = pkgs.writeShellApplication {
+    name = "mullvad-browser";
+    runtimeInputs = [ bmullvadJoin ];
+    text = ''
+      exec bmullvad-join -- ${lib.getExe pkgs.mullvad-browser} "$@"
+    '';
   };
 
   i3CycleTabSibling = pkgs.writeScriptBin "i3-cycle-tab-sibling" ''
@@ -158,12 +184,6 @@ let
     runtimeInputs = with pkgs; [ openssh curl xdg-utils python3 ];
     text = builtins.readFile ./scripts/rhtml;
   };
-  # launch mullvad-browser through Singapore WireGuard tunnel (netns isolation)
-  mullvadSg = pkgs.writeShellApplication {
-    name = "mullvad-sg";
-    runtimeInputs = with pkgs; [ iproute2 ];
-    text = builtins.readFile ./scripts/mullvad-sg;
-  };
 
   # recover AirPods A2DP on CSR without thrashing (see docs/runbooks/bluetooth.md)
   airpodsFix = pkgs.writeShellApplication {
@@ -177,6 +197,12 @@ let
     name = "launch-roblox";
     runtimeInputs = with pkgs; [ flatpak coreutils ];
     text = builtins.readFile ./scripts/launch-roblox;
+  };
+
+  soberUpdate = pkgs.writeShellApplication {
+    name = "sober-update";
+    runtimeInputs = with pkgs; [ flatpak coreutils gnugrep gawk libnotify ];
+    text = builtins.readFile ./scripts/sober-update;
   };
 in
 {
@@ -206,6 +232,7 @@ in
     unzip
     zip
     _7zz
+    gh
 
     kitty
     fuzzel
@@ -254,13 +281,13 @@ in
     swayI3Msg
     swayI3Lock
     firefoxSession
-    cloakSession
+    cloak
     steam-run
     ungoogled-chromium
     wireguard-tools
     nwg-displays
     calibre
-    mullvad-browser
+    mullvadBrowser
     i3CycleTabSibling
     i3SpawnHere
     i3TreePath
@@ -271,9 +298,10 @@ in
     i3ResurrectRestoreWorkspace
     hibernateConfirm
     rhtml
-    mullvadSg
-  ] ++ lib.optional (osConfig.networking.hostName == "sfnix") airpodsFix ++ [
+    bmullvad
+  ] ++ lib.optionals (osConfig.networking.hostName == "sfnix") [ airpodsFix herdrGui ] ++ [
     launchRoblox
+    soberUpdate
   ];
 
   programs.bash.enable = true;
@@ -323,7 +351,6 @@ in
     # clipboard sync over tailscale — push/pull between sfnix and ata-ubuntu
     clip-push = "wl-paste | ssh sfub \"DISPLAY=:1 xclip -i -selection clipboard\"";
     clip-pull = "ssh sfub \"DISPLAY=:1 xclip -o -selection clipboard 2>/dev/null\" | wl-copy";
-    omp = "/home/sf/.local/bin/omp";
   };
 
   home.sessionVariables = {
@@ -393,12 +420,37 @@ in
     name = "Cloak";
     genericName = "Web Browser";
     comment = "Stealth Chromium with localhost CDP for agents";
-    exec = "${cloakSession}/bin/cloak-session %U";
+    exec = "${cloak}/bin/cloak %U";
     terminal = false;
     categories = [ "Network" "WebBrowser" ];
     mimeType = [ "text/html" "x-scheme-handler/http" "x-scheme-handler/https" ];
     settings = {
       Keywords = "cloak;chromium;cdp;";
+    };
+  };
+
+  xdg.desktopEntries.mullvad-browser = {
+    name = "Mullvad Browser";
+    genericName = "Web Browser";
+    comment = "Mullvad Browser (joins bmullvad when up)";
+    exec = "${mullvadBrowser}/bin/mullvad-browser %U";
+    terminal = false;
+    categories = [ "Network" "WebBrowser" ];
+    mimeType = [ "text/html" "x-scheme-handler/http" "x-scheme-handler/https" ];
+    settings = {
+      Keywords = "mullvad;browser;vpn;";
+    };
+  };
+
+  xdg.desktopEntries.sober-update = {
+    name = "Update Sober";
+    genericName = "Roblox updater";
+    comment = "Update Sober (Roblox) from Flathub";
+    exec = "${soberUpdate}/bin/sober-update";
+    terminal = true;
+    categories = [ "Game" ];
+    settings = {
+      Keywords = "sober;roblox;update;flatpak;";
     };
   };
 
@@ -449,27 +501,7 @@ in
   xdg.configFile."xfce4/helpers.rc".text = "TerminalEmulator=kitty
 ";
 
-  xdg.configFile."herdr/config.toml".text = ''
-    onboarding = false
-
-    [advanced]
-    scrollback_limit_bytes = 2000000
-
-    [theme]
-    name = "one-dark"
-
-    [ui]
-    mouse_capture = true
-    mouse_scroll_lines = 6
-    agent_panel_scope = "all"
-    show_agent_labels_on_pane_borders = true
-
-    [ui.toast]
-    delivery = "off"
-
-    [experimental]
-    kitty_graphics = true
-  '';
+  xdg.configFile."herdr/config.toml".source = ./files/herdr/config.toml;
 
   xdg.configFile."kitty/kitty.conf".source = ./files/kitty/kitty.conf;
   xdg.configFile."kitty/opacity.conf".source = ./files/kitty/opacity.conf;

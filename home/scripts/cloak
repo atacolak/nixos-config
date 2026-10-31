@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Daily Cloak (stealth Chromium). Always exposes CDP on 127.0.0.1:9222.
 # Shared surface: you drive the window, agents attach to that same process.
+# If bmullvad is up, this process joins vpn-sg; otherwise it uses the host net.
 set -euo pipefail
 
 CHROME_DIR="${CLOAK_CHROME_DIR:-${HOME}/.cloakbrowser/chromium-146.0.7680.177.5}"
@@ -11,7 +12,7 @@ CDP_PORT="${CLOAK_CDP_PORT:-9222}"
 NIX_LD_DIR="/run/current-system/sw/share/nix-ld/lib"
 
 if [[ ! -x "${CHROME}" ]]; then
-  echo "cloak-session: missing chrome at ${CHROME}" >&2
+  echo "cloak: missing chrome at ${CHROME}" >&2
   echo "download: GitHub CloakHQ/cloakbrowser release chromium-v146.0.7680.177.5" >&2
   exit 1
 fi
@@ -32,7 +33,7 @@ if [[ -z "${NIX_LD_LIBRARY_PATH:-}" && -d "${NIX_LD_DIR}" ]]; then
   export NIX_LD_LIBRARY_PATH="${NIX_LD_DIR}"
 fi
 if [[ -z "${NIX_LD:-}" ]]; then
-  echo "cloak-session: NIX_LD unset and ${NIX_LD_DIR}/ld.so missing. Rebuild nix-ld." >&2
+  echo "cloak: NIX_LD unset and ${NIX_LD_DIR}/ld.so missing. Rebuild nix-ld." >&2
   exit 1
 fi
 
@@ -56,7 +57,7 @@ cat >"${PROFILE}/policies/managed/mv2.json" <<'JSON'
 }
 JSON
 
-exec "${CHROME}" \
+exec bmullvad-join -- "${CHROME}" \
   --user-data-dir="${PROFILE}" \
   --remote-debugging-port="${CDP_PORT}" \
   --remote-debugging-address=127.0.0.1 \

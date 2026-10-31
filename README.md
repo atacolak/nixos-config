@@ -41,7 +41,7 @@ to manage wifi, use `nmtui`.
 
 `clip-push` — copy sfnix clipboard to ata-ubuntu. `clip-pull` — copy ata-ubuntu clipboard to sfnix.
 
-`mullvad-sg` — launch mullvad-browser through Singapore WireGuard tunnel. only that browser sees the vpn; tailscale/firefox/everything else stays on normal connection. needs `sudo systemctl start vpn-netns` once after boot.
+`bmullvad` — browser-only Mullvad (`connect` / `disconnect` / `status` / `relay set location`). same verbs as `mullvad`, does not touch host routing. `cloak` and `mullvad-browser` join it at launch. default exit: Amsterdam. `mullvad-sg` is gone.
 
 `nwg-displays` — gui for managing sway outputs (position, resolution, enable/disable). for ar glasses or second screen.
 

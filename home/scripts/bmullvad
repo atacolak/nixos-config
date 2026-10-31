@@ -1,0 +1,372 @@
+#!/usr/bin/env bash
+# Browser-only Mullvad. Same verbs as `mullvad`, scoped to cloak / mullvad-browser.
+# Does not change host routing, Tailscale, or system `mullvad`.
+# shellcheck disable=SC2016
+set -euo pipefail
+
+CTL="${BMULLVAD_CTL:-/etc/bmullvad/ctl}"
+NSEXEC="${BMULLVAD_NSEXEC:-/etc/bmullvad/nsexec}"
+NS_PATH="${BMULLVAD_NS_PATH:-/var/run/netns/vpn-sg}"
+SUDO="${BMULLVAD_SUDO:-/run/wrappers/bin/sudo}"
+WG="${WG:-wg}"
+CURL="${CURL:-curl}"
+JQ="${JQ:-jq}"
+
+CONF_DIR="${BMULLVAD_CONF_DIR:-${XDG_CONFIG_HOME:-${HOME}/.config}/bmullvad}"
+CACHE_DIR="${BMULLVAD_CACHE_DIR:-${XDG_CACHE_HOME:-${HOME}/.cache}/bmullvad}"
+LOCATION_FILE="${CONF_DIR}/location"
+PEER_FILE="${CONF_DIR}/peer"
+RELAYS_FILE="${CACHE_DIR}/relays.json"
+RELAYS_URL="https://api.mullvad.net/www/relays/wireguard"
+AMI_URL="https://am.i.mullvad.net/json"
+DEFAULT_COUNTRY="nl"
+DEFAULT_CITY="ams"
+
+usage() {
+  local code="${1:-2}"
+  cat >&2 <<'EOF'
+Manage the browser-only Mullvad connection
+Usage: bmullvad <COMMAND>
+
+Commands:
+  connect      Connect to a VPN relay
+  disconnect   Disconnect from the VPN
+  reconnect    Reconnect to any matching VPN relay
+  relay        Manage relay and tunnel constraints
+  status       Return the state of the VPN tunnel
+  version      Show version
+  help         Print this message
+
+This is not system `mullvad`. Host apps, firefox, and Tailscale stay on the host net.
+EOF
+  exit "${code}"
+}
+need_ctl() {
+  if [[ ! -x "${CTL}" ]]; then
+    echo "bmullvad: missing ${CTL} (nixrebuild on sfnix so vpn-netns is live)" >&2
+    exit 1
+  fi
+}
+
+is_up() {
+  [[ -e "${NS_PATH}" ]]
+}
+
+ensure_dirs() {
+  mkdir -p "${CONF_DIR}" "${CACHE_DIR}"
+}
+
+relays_stale() {
+  local mtime now
+  [[ -f "${RELAYS_FILE}" ]] || return 0
+  mtime=$(stat -c %Y "${RELAYS_FILE}" 2>/dev/null || echo 0)
+  now=$(date +%s)
+  (( now - mtime > 86400 ))
+}
+
+fetch_relays() {
+  ensure_dirs
+  "${CURL}" -fsS --max-time 20 "${RELAYS_URL}" -o "${RELAYS_FILE}.tmp"
+  mv "${RELAYS_FILE}.tmp" "${RELAYS_FILE}"
+}
+
+ensure_relays() {
+  if relays_stale; then
+    fetch_relays
+  fi
+}
+
+read_location() {
+  COUNTRY="${DEFAULT_COUNTRY}"
+  CITY="${DEFAULT_CITY}"
+  HOSTNAME=""
+  if [[ -f "${LOCATION_FILE}" ]]; then
+    # shellcheck disable=SC1090
+    source "${LOCATION_FILE}"
+  fi
+}
+
+write_location() {
+  ensure_dirs
+  cat >"${LOCATION_FILE}" <<EOF
+COUNTRY=${COUNTRY@Q}
+CITY=${CITY@Q}
+HOSTNAME=${HOSTNAME@Q}
+EOF
+}
+
+write_peer_from_json() {
+  local json="$1"
+  ensure_dirs
+  "${JQ}" -r '
+    "hostname=" + .hostname,
+    "country_code=" + .country_code,
+    "country_name=" + .country_name,
+    "city_code=" + .city_code,
+    "city_name=" + .city_name,
+    "PublicKey = " + .pubkey,
+    "Endpoint = " + .ipv4_addr_in + ":51820"
+  ' <<<"${json}" >"${PEER_FILE}"
+}
+
+pick_relay_json() {
+  local country="$1" city="$2" host="$3"
+  ensure_relays
+  "${JQ}" -c --arg c "${country}" --arg y "${city}" --arg h "${host}" '
+    map(select(.active == true))
+    | if $h != "" then
+        map(select(.hostname == $h))
+      elif ($c | test("-wg-")) then
+        map(select(.hostname == $c))
+      else
+        map(select(
+          ($c == "" or $c == "any" or .country_code == $c)
+          and ($y == "" or .city_code == $y)
+        ))
+      end
+    | .[0] // empty
+  ' "${RELAYS_FILE}"
+}
+
+resolve_peer() {
+  read_location
+  local json
+  json=$(pick_relay_json "${COUNTRY}" "${CITY}" "${HOSTNAME}")
+  if [[ -z "${json}" ]]; then
+    echo "bmullvad: no matching WireGuard relay for ${COUNTRY} ${CITY} ${HOSTNAME}" >&2
+    exit 1
+  fi
+  write_peer_from_json "${json}"
+}
+
+parse_location_args() {
+  COUNTRY="${DEFAULT_COUNTRY}"
+  CITY="${DEFAULT_CITY}"
+  HOSTNAME=""
+  if [[ $# -eq 0 ]]; then
+    return 0
+  fi
+  if [[ $# -eq 1 && "$1" == *"-wg-"* ]]; then
+    HOSTNAME="$1"
+    COUNTRY=""
+    CITY=""
+    return 0
+  fi
+  COUNTRY="$1"
+  CITY="${2:-}"
+  HOSTNAME="${3:-}"
+}
+
+ctl_do() {
+  need_ctl
+  "${SUDO}" "${CTL}" "$1"
+}
+
+cmd_connect() {
+  local wait=0
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -w|--wait) wait=1; shift ;;
+      -h|--help) echo "Usage: bmullvad connect [-w|--wait]"; exit 0 ;;
+      *) echo "bmullvad connect: unknown option $1" >&2; exit 2 ;;
+    esac
+  done
+  if [[ ! -f "${PEER_FILE}" ]]; then
+    resolve_peer
+  fi
+  ctl_do connect
+  if [[ "${wait}" -eq 1 ]]; then
+    local n=0
+    while (( n < 20 )); do
+      if visible_json >/dev/null 2>&1; then
+        cmd_status
+        return 0
+      fi
+      n=$((n + 1))
+      sleep 0.5
+    done
+    echo "bmullvad: connected, but exit check timed out" >&2
+    cmd_status || true
+    return 1
+  fi
+}
+
+cmd_disconnect() {
+  ctl_do disconnect
+}
+
+cmd_reconnect() {
+  if [[ ! -f "${PEER_FILE}" ]]; then
+    resolve_peer
+  fi
+  ctl_do reconnect
+}
+
+visible_json() {
+  if is_up && [[ -x "${NSEXEC}" ]]; then
+    "${SUDO}" "${NSEXEC}" "${CURL}" -fsS --max-time 4 "${AMI_URL}"
+  else
+    "${CURL}" -fsS --max-time 4 "${AMI_URL}"
+  fi
+}
+
+peer_field() {
+  local key="$1"
+  [[ -f "${PEER_FILE}" ]] || return 0
+  awk -F= -v k="${key}" '$1==k {sub(/^[[:space:]]+/, "", $2); print $2}' "${PEER_FILE}"
+}
+
+cmd_status() {
+  local verbose=0 json_out=0
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -v|--verbose) verbose=1; shift ;;
+      -j|--json) json_out=1; shift ;;
+      -h|--help) echo "Usage: bmullvad status [-v] [-j]"; exit 0 ;;
+      *) shift ;;
+    esac
+  done
+
+  local vis city country ip exit_ip hostname city_name country_name
+  vis=$(visible_json 2>/dev/null || true)
+  if [[ -n "${vis}" ]]; then
+    ip=$("${JQ}" -r '.ip // empty' <<<"${vis}")
+    city=$("${JQ}" -r '.city // empty' <<<"${vis}")
+    country=$("${JQ}" -r '.country // empty' <<<"${vis}")
+    exit_ip=$("${JQ}" -r '.mullvad_exit_ip // false' <<<"${vis}")
+  fi
+  hostname=$(peer_field hostname)
+  city_name=$(peer_field city_name)
+  country_name=$(peer_field country_name)
+
+  if [[ "${json_out}" -eq 1 ]]; then
+    "${JQ}" -n \
+      --arg state "$(is_up && echo connected || echo disconnected)" \
+      --arg relay "${hostname}" \
+      --arg ip "${ip:-}" \
+      --arg city "${city:-}" \
+      --arg country "${country:-}" \
+      --argjson mullvad "${exit_ip:-false}" \
+      '{state:$state, relay:$relay, ip:$ip, city:$city, country:$country, mullvad_exit_ip:$mullvad}'
+    is_up
+    return
+  fi
+
+  if is_up; then
+    echo "Connected"
+    if [[ -n "${hostname}" ]]; then
+      echo "    Relay:                  ${hostname}"
+    fi
+    if [[ -n "${city_name}" || -n "${country_name}" ]]; then
+      echo "    Location:               ${city_name:-?}, ${country_name:-?}"
+    fi
+  else
+    echo "Disconnected"
+  fi
+  if [[ -n "${ip}" ]]; then
+    echo "    Visible location:       ${country:-?}${city:+, ${city}}. IPv4: ${ip}"
+  fi
+  if [[ "${verbose}" -eq 1 ]] && is_up; then
+    "${SUDO}" "${NSEXEC}" "${WG}" show wg-sg || true
+  fi
+  is_up
+}
+
+cmd_relay_get() {
+  read_location
+  echo "Browser-only constraints"
+  echo "    Location:               ${COUNTRY:-any}${CITY:+ ${CITY}}${HOSTNAME:+ ${HOSTNAME}}"
+  if [[ -f "${PEER_FILE}" ]]; then
+    echo "    Current relay:          $(peer_field hostname)"
+    echo "    Endpoint:               $(awk -F= '/^Endpoint/ {sub(/^[[:space:]]+/, "", $2); print $2}' "${PEER_FILE}")"
+  fi
+}
+
+cmd_relay_list() {
+  ensure_relays
+  "${JQ}" -r '
+    map(select(.active == true))
+    | group_by(.country_name)
+    | .[]
+    | (.[0].country_name) as $co
+    | (.[0].country_code) as $cc
+    | "\($co) (\($cc))",
+      (group_by(.city_code)[]
+        | "\t\(.[0].city_name) (\(.[0].city_code))",
+          (.[] | "\t\t\(.hostname)"))
+  ' "${RELAYS_FILE}"
+}
+
+cmd_relay_update() {
+  fetch_relays
+  echo "bmullvad: relay list updated"
+}
+
+cmd_relay_set_location() {
+  parse_location_args "$@"
+  write_location
+  resolve_peer
+  echo "Relay constraint: ${COUNTRY:-any} ${CITY} ${HOSTNAME} -> $(peer_field hostname)"
+  if is_up; then
+    ctl_do reconnect
+  fi
+}
+
+cmd_relay() {
+  local sub="${1:-}"
+  shift || true
+  case "${sub}" in
+    get) cmd_relay_get ;;
+    list) cmd_relay_list ;;
+    update) cmd_relay_update ;;
+    set)
+      local what="${1:-}"
+      shift || true
+      case "${what}" in
+        location) cmd_relay_set_location "$@" ;;
+        "") echo "Usage: bmullvad relay set location <COUNTRY> [CITY] [HOSTNAME]" >&2; exit 2 ;;
+        *)
+          echo "bmullvad: browser-scope supports 'relay set location' only (not ${what})" >&2
+          exit 2
+          ;;
+      esac
+      ;;
+    help|"")
+      cat >&2 <<'EOF'
+Usage: bmullvad relay <COMMAND>
+Commands:
+  get       Display the current relay constraints
+  set       Set relay constraints (location only)
+  list      List available relays
+  update    Update the relay list
+EOF
+      exit 2
+      ;;
+    *)
+      echo "bmullvad relay: unknown command ${sub}" >&2
+      exit 2
+      ;;
+  esac
+}
+
+cmd_version() {
+  echo "bmullvad (browser-only Mullvad)"
+}
+
+cmd="${1:-}"
+shift || true
+case "${cmd}" in
+  connect) cmd_connect "$@" ;;
+  disconnect|down) cmd_disconnect "$@" ;;
+  reconnect) cmd_reconnect "$@" ;;
+  up) cmd_connect "$@" ;;
+  status) cmd_status "$@" ;;
+  relay) cmd_relay "$@" ;;
+  version|--version|-V) cmd_version ;;
+  help|--help|-h) usage 0 ;;
+  "") usage 2 ;;
+  *)
+    echo "error: unrecognized subcommand" >&2
+    usage
+    ;;
+esac

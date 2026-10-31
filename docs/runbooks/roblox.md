@@ -24,11 +24,14 @@ do not add a wine prefix under `~/Games/roblox`. logs only.
 launch-roblox
 # or
 flatpak run org.vinegarhq.Sober
+sober-update                 # flathub update; sudo for the system install
 ```
 
-fuzzel: type **Sober** or **Roblox**. `$mod+space` is rebound to
-`launch-fuzzel` so the frozen sway login env still sees the
-flatpak share dir.
+fuzzel: type **Sober** or **Roblox** to play. type **Update Sober** to
+update. that second one is `xdg.desktopEntries.sober-update` in
+`home/sf.nix` (a `.desktop` file under `~/.local/share/applications`).
+`$mod+space` is rebound to `launch-fuzzel` so the frozen sway login env
+still sees the flatpak share dir.
 
 first launch downloads the official APK + x86_64 split inside the
 sandbox. that is expected and needs network.

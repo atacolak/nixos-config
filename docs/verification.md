@@ -124,6 +124,20 @@ xdg-mime query default x-scheme-handler/roblox-player
 
 see `docs/runbooks/roblox.md`. first launch downloads the official APK.
 
+## bmullvad / cloak
+
+```bash
+command -v bmullvad cloak mullvad-browser
+command -v mullvad-sg && echo 'FAIL: mullvad-sg still on PATH' || echo 'mullvad-sg gone'
+bmullvad status || true
+# after switch on sfnix:
+# bmullvad relay set location nl ams
+# bmullvad connect -w && bmullvad status -v
+# cloak; curl -sS http://127.0.0.1:9222/json/version
+```
+
+see `docs/runbooks/bmullvad.md` and `docs/runbooks/cloak.md`.
+
 ## git proof
 
 ```bash

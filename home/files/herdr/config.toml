@@ -1,0 +1,57 @@
+onboarding = false
+
+[session]
+# Occupancy is Actor CLI (`actor r` / `actor r --all` from .systemd-ops/surface.toml).
+# Native OMP/claude/pi resume types the wrong command into actor homes.
+resume_agents_on_restore = false
+
+[terminal]
+default_shell = "bash"
+
+[advanced]
+scrollback_limit_bytes = 2000000
+
+[experimental]
+kitty_graphics = true
+
+[ui.toast]
+delivery = "herdr"
+
+[theme]
+name = "one-dark"
+
+[ui]
+mouse_capture = true
+mouse_scroll_lines = 6
+agent_panel_scope = "all"
+show_agent_labels_on_pane_borders = true
+agent_panel_sort = "priority"
+
+[ui.sidebar.agents]
+# Line 2 = OMP readable session title ($title), not the slug (pane).
+rows = [["state_icon", "workspace", "tab"], ["$title"]]
+
+[ui.sound]
+enabled = true
+
+[keys]
+# Prefix key (tmux-style).
+prefix = "ctrl+a"
+
+# Plugin keybindings
+# After prefix, press the second key.
+# Also bind direct chords that do not need prefix mode (more reliable over SSH/terminals).
+[[keys.command]]
+key = ["prefix+a", "ctrl+alt+a"]
+type = "plugin_action"
+command = "jt.command-palette.open"
+description = "Command palette"
+
+[[keys.command]]
+key = ["prefix+e", "ctrl+alt+e"]
+type = "plugin_action"
+command = "cloudmanic.herdr-plus.projects"
+description = "Herdr Plus: Projects"
+
+[update]
+channel = "stable"

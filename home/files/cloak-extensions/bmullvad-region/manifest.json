@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "Mullvad Region (browser-only)",
+  "version": "1.2.1",
+  "description": "Switch or drop the browser-only Mullvad exit. Host and system VPN are untouched.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2tbuwhUvHrBxTOJRypO4d22poGBe5RU50SP9sJurBexoV0ryoxDVWd4sSO/jnWl/uYcmM1g8k9FxD+X6TJ9pA/aOqHPcDvXUV9LwQqNCGmBnJWLbnRg4P9EHVOC6uZzPcPbDyCqRd3p9rRP/LVvmSXffzVCeOQgWd6dSMFCcEqB+U2Scq63WKBxqdRsFzOPfsOMoM22Y4b2ynXVF3dwNe1/XzxkBPQ1U3RkRqg+FOUv/jPAvvAJqtqd/j5+9xFkj9eSDFbiE3nLmlbSBQOwQV8Z0a5uSWGVQxwHcy9j5ySCKoJ0H1VmyrVPF4lut8IL6+CG8xsuzEu8YanNXjfMsdwIDAQAB",
+  "permissions": ["nativeMessaging", "storage", "alarms"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Mullvad region",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/16.png",
+      "32": "icons/32.png",
+      "48": "icons/48.png",
+      "128": "icons/128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/16.png",
+    "32": "icons/32.png",
+    "48": "icons/48.png",
+    "128": "icons/128.png"
+  }
+}

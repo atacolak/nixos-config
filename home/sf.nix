@@ -59,7 +59,6 @@ let
   '';
 
   modernMinimalUiSounds = pkgs.callPackage ../pkgs/modern-minimal-ui-sounds.nix { };
-  herdrGui = pkgs.callPackage ../pkgs/herdr-gpui.nix { };
 
   # handy: pkgs.handy from nixpkgs (drops AppImage requireFile)
 
@@ -114,10 +113,74 @@ let
     '' + builtins.readFile ./scripts/bmullvad;
   };
 
+  cloakJanitor = pkgs.writeShellApplication {
+    name = "cloak-janitor";
+    # SC2016: the jq program is deliberately single-quoted; $pat is jq's.
+    excludeShellChecks = [ "SC2016" ];
+    runtimeInputs = with pkgs; [ curl jq coreutils ];
+    text = builtins.readFile ./scripts/cloak-janitor;
+  };
+
   cloak = pkgs.writeShellApplication {
     name = "cloak";
-    runtimeInputs = [ bmullvadJoin pkgs.findutils pkgs.coreutils ];
+    runtimeInputs = [ bmullvadJoin cloakJanitor pkgs.findutils pkgs.coreutils pkgs.util-linux ];
     text = builtins.readFile ./scripts/cloak;
+  };
+
+  # The extension's toolbar icon is the exit country's flag. Chromium refuses
+  # SVG in createImageBitmap, so the flags have to arrive as PNGs. Rasterise
+  # them here rather than committing 200 binaries: flags/ holds 50 small SVGs
+  # and this turns them into the 200 files background.js fetches.
+  bmullvadRegionFlags = pkgs.runCommand "bmullvad-region-flags" {
+    nativeBuildInputs = [ pkgs.imagemagick ];
+  } ''
+    mkdir -p $out
+    for svg in ${./files/cloak-extensions/bmullvad-region/flags}/*.svg; do
+      cc=$(basename "$svg" .svg)
+      for size in 16 32 48 128; do
+        # -resize WxH^ then -extent = cover: fill the square and crop the
+        # overflow. Without the ^ this letterboxes the 4:3 flag inside a
+        # square and the icon ends up with transparent bars.
+        magick -background none -density 384 "$svg" \
+          -resize "''${size}x''${size}^" \
+          -gravity center -extent "''${size}x''${size}" \
+          "$out/$cc-$size.png"
+      done
+    done
+  '';
+
+  cloakExocortex = pkgs.writeShellApplication {
+    name = "cloak-exocortex";
+    runtimeInputs = with pkgs; [ coreutils util-linux inetutils ];
+    text = builtins.readFile ./scripts/cloak-exocortex;
+  };
+
+  cloakExocortexLogin = pkgs.writeShellApplication {
+    name = "cloak-exocortex-login";
+    runtimeInputs = [ pkgs.python3 ];
+    text = ''
+      export LD_LIBRARY_PATH="${lib.makeLibraryPath [ pkgs.stdenv.cc.cc.lib ]}''${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+    '' + builtins.readFile ./scripts/cloak-exocortex-login;
+  };
+
+  # Chrome native messaging host for the Mullvad-region extension.
+  # The extension cannot exec anything, so this is its only way out.
+  bmullvadNativeHost = pkgs.writeScriptBin "bmullvad-native-host" (
+    ''
+      #!${pkgs.python3}/bin/python3
+      import os
+      os.environ.setdefault("BMULLVAD", "${bmullvad}/bin/bmullvad")
+    '' + builtins.readFile ./scripts/bmullvad-native-host
+  );
+
+  # Extension id is pinned by the `key` in the extension's manifest.json, so
+  # this origin stays valid across rebuilds.
+  nativeHostManifest = builtins.toJSON {
+    name = "net.colak.bmullvad";
+    description = "Mullvad region control for the browser-only tunnel";
+    path = "${bmullvadNativeHost}/bin/bmullvad-native-host";
+    type = "stdio";
+    allowed_origins = [ "chrome-extension://phkfkngoigbagfncjaaocnkmnhcilkne/" ];
   };
 
   mullvadBrowser = pkgs.writeShellApplication {
@@ -199,6 +262,17 @@ let
     text = builtins.readFile ./scripts/launch-roblox;
   };
 
+  # Cloak loads extensions from ~/.cloakbrowser/extensions at launch, so it
+  # wants a plain directory. The source tree ships the flag SVGs; the PNGs the
+  # worker actually fetches are generated above, so the two are composed here
+  # into one store path.
+  bmullvadRegionExt = pkgs.runCommand "bmullvad-region" { } ''
+    cp -r ${./files/cloak-extensions/bmullvad-region} $out
+    chmod -R u+w $out
+    rm -rf $out/flags
+    cp -r ${bmullvadRegionFlags} $out/flags
+  '';
+
   soberUpdate = pkgs.writeShellApplication {
     name = "sober-update";
     runtimeInputs = with pkgs; [ flatpak coreutils gnugrep gawk libnotify ];
@@ -210,6 +284,7 @@ in
 
   home.username = "sf";
   home.homeDirectory = "/home/sf";
+  home.sessionPath = lib.optionals (osConfig.networking.hostName == "sfnix") [ "/home/sf/.local/bin" ];
   home.stateVersion = "26.05";
 
   programs.home-manager.enable = true;
@@ -301,7 +376,8 @@ in
     hibernateConfirm
     rhtml
     bmullvad
-  ] ++ lib.optionals (osConfig.networking.hostName == "sfnix") [ airpodsFix herdrGui ] ++ [
+    bmullvadNativeHost
+  ] ++ lib.optionals (osConfig.networking.hostName == "sfnix") [ airpodsFix cloakExocortex cloakExocortexLogin ] ++ [
     launchRoblox
     soberUpdate
   ];
@@ -429,6 +505,18 @@ in
     };
   };
 
+  xdg.desktopEntries.cloak-exocortex = lib.mkIf (osConfig.networking.hostName == "sfnix") {
+    name = "Exocortex in Cloak";
+    genericName = "Isolated Workspace Browser";
+    comment = "Dedicated persistent Exocortex profile with sandbox and native rendering";
+    exec = "${cloakExocortex}/bin/cloak-exocortex %U";
+    terminal = false;
+    categories = [ "Network" "WebBrowser" ];
+    settings = {
+      Keywords = "exocortex;cloak;workspace;";
+    };
+  };
+
   xdg.desktopEntries.mullvad-browser = {
     name = "Mullvad Browser";
     genericName = "Web Browser";
@@ -542,6 +630,14 @@ in
   xdg.configFile."sway/config".source = ./files/sway/config;
   xdg.configFile."sway/wallpaper.jpg".source = ./files/sway/wallpaper.jpg;
   xdg.configFile."i3status-rust/config.toml".source = ./files/i3status-rust/config.toml;
+
+  home.file.".cloakbrowser/extensions/bmullvad-region".source = bmullvadRegionExt;
+
+  # Cloak runs with --user-data-dir=~/.cloakbrowser/profile, and Chromium
+  # resolves native messaging hosts against that dir before the XDG location.
+  # Both are written so the extension resolves the host either way.
+  home.file.".cloakbrowser/profile/NativeMessagingHosts/net.colak.bmullvad.json".text = nativeHostManifest;
+  home.file.".config/chromium/NativeMessagingHosts/net.colak.bmullvad.json".text = nativeHostManifest;
 
   programs.vscode = {
     enable = true;

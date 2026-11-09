@@ -1,0 +1,166 @@
+#!/usr/bin/env bash
+# Dedicated browser lifecycle. Attach clients must not close or wipe this profile.
+# Source: systemd-ops. The declarative host owner supplies the maintained binary.
+set -euo pipefail
+umask 077
+ulimit -c 0
+
+fail() { printf 'cloak-exocortex: %s\n' "$*" >&2; exit 2; }
+
+prepare=0
+if [[ "${1:-}" == --prepare ]]; then
+  [[ $# == 1 ]] || fail '--prepare accepts no URLs'
+  prepare=1
+  shift
+fi
+
+for arg in "$@"; do
+  case "$arg" in
+    https://*|http://127.0.0.1:*|http://localhost:*|about:blank) ;;
+    *) fail 'only explicit URLs are accepted; browser switches are refused' ;;
+  esac
+done
+
+profile_input="${CLOAK_EXOCORTEX_PROFILE:-${XDG_DATA_HOME:-$HOME/.local/share}/cloak-exocortex/profile}"
+[[ "$profile_input" == /* && "$profile_input" != / && ! -L "$profile_input" ]] || fail 'profile must be an absolute, non-symlink dedicated directory'
+profile="$(realpath -m -- "$profile_input")"
+daily="$(realpath -m -- "$HOME/.cloakbrowser/profile")"
+case "$profile" in "$daily"|"$daily"/*) fail 'the daily Cloak profile is forbidden' ;; esac
+marker="$profile/.systemd-ops-cloak-exocortex"
+
+chrome="${CLOAK_EXOCORTEX_CHROME:-$HOME/.local/share/cloak-exocortex/browser/chrome}"
+if [[ "$prepare" == 0 ]]; then
+  [[ "$chrome" == /* && -x "$chrome" ]] || fail 'set CLOAK_EXOCORTEX_CHROME to the owner-installed maintained browser binary'
+  [[ "$(basename -- "$chrome")" != cloak ]] || fail 'the daily cloak wrapper is forbidden; use the browser binary'
+fi
+renderer="${CLOAK_EXOCORTEX_RENDERER:-native}"
+case "$renderer" in
+  native) renderer_args=(--use-gl=angle --use-angle=gl --enable-gpu) ;;
+  software) renderer_args=(--use-gl=angle --use-angle=swiftshader); printf '%s\n' 'cloak-exocortex: explicit software-rendering fallback selected' >&2 ;;
+  *) fail 'renderer must be native or explicit software fallback' ;;
+esac
+
+if [[ -e "$profile" ]]; then
+  [[ -d "$profile" && -f "$marker" && ! -L "$marker" ]] || fail 'existing profile is not owned by this launcher'
+  [[ "$(<"$marker")" == systemd-ops-cloak-exocortex-v1 ]] || fail 'unrecognized profile ownership marker'
+  [[ -f "$profile/Default/Preferences" ]] || fail 'owned profile preferences missing; refusing silent reset'
+else
+  mkdir -p -- "$(dirname -- "$profile")"
+  mkdir -m 700 -- "$profile"
+  mkdir -m 700 -- "$profile/Default"
+  printf '%s\n' '{"session":{"restore_on_startup":1}}' > "$profile/Default/Preferences"
+  printf '%s\n' systemd-ops-cloak-exocortex-v1 > "$marker"
+fi
+
+
+# Hold the lock in this parent for the browser's lifetime. A second launch is
+# attach-only: do not send URLs to Chromium's singleton or activate a window.
+exec 9>"$profile/.launcher.lock"
+if ! flock -n 9; then
+  printf 'cloak-exocortex: already running; attach using %s/DevToolsActivePort\n' "$profile"
+  exit 0
+fi
+
+# A browser can outlive its launcher. Do not forward a second invocation to
+# Chromium's singleton, even if the parent-held flock is no longer present.
+if [[ -L "$profile/SingletonLock" ]]; then
+  singleton="$(readlink -- "$profile/SingletonLock")"
+  singleton_host="${singleton%-*}"
+  singleton_pid="${singleton##*-}"
+  [[ "$singleton_host" == "$(hostname)" && "$singleton_pid" =~ ^[1-9][0-9]*$ ]] || fail 'browser singleton ownership is unknown'
+  if [[ -d "/proc/$singleton_pid" ]]; then
+    printf 'cloak-exocortex: already running; attach using %s/DevToolsActivePort\n' "$profile"
+    exit 0
+  fi
+  # Let Chromium handle its own stale lock. Do not delete session state.
+fi
+
+# Reuse the SDK 0.7 cross-language seed format even when safe launch bypasses
+# SDK stealth defaults. Never reset a malformed or externally linked identity.
+seed_file="$profile/.cloakbrowser-seed"
+[[ ! -L "$seed_file" ]] || fail 'fingerprint seed must not be a symlink'
+if [[ ! -e "$seed_file" ]]; then
+  seed_tmp="$(mktemp "$profile/.cloakbrowser-seed.XXXXXX")"
+  if ! shuf --input-range=10000-99999 --head-count=1 >"$seed_tmp"; then
+    rm -- "$seed_tmp"
+    fail 'could not prepare fingerprint seed'
+  fi
+  if ! ln -T -- "$seed_tmp" "$seed_file" 2>/dev/null; then
+    if [[ ! -e "$seed_file" ]]; then
+      rm -- "$seed_tmp"
+      fail 'could not publish fingerprint seed without replacement'
+    fi
+  fi
+  rm -- "$seed_tmp"
+fi
+[[ -f "$seed_file" && ! -L "$seed_file" ]] || fail 'fingerprint seed must be a regular file'
+fingerprint_seed="$(<"$seed_file")"
+[[ "$fingerprint_seed" =~ ^[1-9][0-9]{4}$ ]] || fail 'invalid fingerprint seed; existing identity left unchanged'
+
+if [[ "$prepare" == 1 ]]; then
+  printf 'cloak-exocortex: dedicated profile prepared at %s; no browser launched\n' "$profile"
+  exit 0
+fi
+
+unshare -Ur true 2>/dev/null || fail 'user namespace sandbox unavailable; refusing --no-sandbox fallback'
+chrome_dir="$(dirname -- "$(realpath -- "$chrome")")"
+ld_dir=/run/current-system/sw/share/nix-ld/lib
+if [[ -d "$ld_dir" ]]; then
+  export NIX_LD="${NIX_LD:-$ld_dir/ld.so}"
+  export NIX_LD_LIBRARY_PATH="${NIX_LD_LIBRARY_PATH:-$ld_dir}"
+fi
+# Resolve native EGL through GLVND before the bundled ANGLE compatibility alias.
+export LD_LIBRARY_PATH="/run/opengl-driver/lib${NIX_LD_LIBRARY_PATH:+:$NIX_LD_LIBRARY_PATH}:$chrome_dir${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+if [[ -d /run/opengl-driver/lib/dri ]]; then
+  export LIBGL_DRIVERS_PATH=/run/opengl-driver/lib/dri
+fi
+if [[ -d /run/opengl-driver/share/glvnd/egl_vendor.d ]]; then
+  export __EGL_VENDOR_LIBRARY_DIRS=/run/opengl-driver/share/glvnd/egl_vendor.d
+fi
+
+window_args=()
+if [[ "${CLOAK_EXOCORTEX_MINIMIZED:-0}" == 1 ]]; then
+  window_args+=(--start-minimized)
+fi
+ozone=x11
+if [[ -n "${WAYLAND_DISPLAY:-}" ]]; then
+  ozone=wayland
+fi
+
+# Do not enable automation defaults that disable sandboxing or session restore.
+# Humanized input remains the attaching adapter's responsibility; no opt-out is
+# introduced here. This launcher never invokes disposable browser-ops launch().
+"$chrome" \
+  --user-data-dir="$profile" \
+  --remote-debugging-address=127.0.0.1 \
+  --remote-debugging-port=0 \
+  --no-first-run \
+  --no-default-browser-check \
+  --restore-last-session \
+  --fingerprint="$fingerprint_seed" \
+  --ozone-platform="$ozone" \
+  --class=cloak-exocortex \
+  "${renderer_args[@]}" \
+  "${window_args[@]}" \
+  "$@" &
+child=$!
+# Called indirectly by the TERM/INT traps below.
+# shellcheck disable=SC2329
+forward_signal() {
+  trap '' TERM INT
+  kill -s "$1" "$child" 2>/dev/null || true
+  # A signal interrupts Bash's outer wait. Reap the child in the handler before
+  # releasing the profile lock, and preserve its actual shutdown status.
+  if wait "$child"; then
+    exit 0
+  else
+    exit "$?"
+  fi
+}
+trap 'forward_signal TERM' TERM
+trap 'forward_signal INT' INT
+if wait "$child"; then
+  exit 0
+else
+  exit "$?"
+fi

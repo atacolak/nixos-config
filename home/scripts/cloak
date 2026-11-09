@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Daily Cloak (stealth Chromium). Always exposes CDP on 127.0.0.1:9222.
 # Shared surface: you drive the window, agents attach to that same process.
-# If bmullvad is up, this process joins vpn-sg; otherwise it uses the host net.
+# If bmullvad is up, this process joins vpn-browser; otherwise it uses the host net.
 set -euo pipefail
 
 CHROME_DIR="${CLOAK_CHROME_DIR:-${HOME}/.cloakbrowser/chromium-146.0.7680.177.5}"
@@ -10,6 +10,7 @@ PROFILE="${CLOAK_PROFILE:-${HOME}/.cloakbrowser/profile}"
 EXT_ROOT="${CLOAK_EXT_ROOT:-${HOME}/.cloakbrowser/extensions}"
 CDP_PORT="${CLOAK_CDP_PORT:-9222}"
 NIX_LD_DIR="/run/current-system/sw/share/nix-ld/lib"
+JANITOR="${CLOAK_JANITOR:-cloak-janitor}"
 
 if [[ ! -x "${CHROME}" ]]; then
   echo "cloak: missing chrome at ${CHROME}" >&2
@@ -41,7 +42,9 @@ export LD_LIBRARY_PATH="${CHROME_DIR}${NIX_LD_LIBRARY_PATH:+:${NIX_LD_LIBRARY_PA
 
 ext_args=()
 if [[ -d "${EXT_ROOT}" ]]; then
-  mapfile -t ext_dirs < <(find "${EXT_ROOT}" -mindepth 1 -maxdepth 1 -type d -exec test -f '{}/manifest.json' ';' -print | sort)
+  # -L: home-manager installs managed extensions as symlinks into the store.
+  # Plain `find -type d` skips those, so they silently never load.
+  mapfile -t ext_dirs < <(find -L "${EXT_ROOT}" -mindepth 1 -maxdepth 1 -type d -exec test -f '{}/manifest.json' ';' -print | sort)
   if ((${#ext_dirs[@]})); then
     IFS=,
     ext_args+=(--disable-extensions-except="${ext_dirs[*]}" --load-extension="${ext_dirs[*]}")
@@ -57,6 +60,15 @@ cat >"${PROFILE}/policies/managed/mv2.json" <<'JSON'
 }
 JSON
 
+# Chromium re-fires onInstalled with reason="install" on every launch when an
+# extension is loaded via --load-extension, so extensions that open a welcome
+# or release-notes page do it every time — and --restore-last-session then
+# keeps those tabs forever. Sweep them just after startup.
+# --daemon stays until the browser exits, because some fire later than boot.
+if JANITOR_BIN="$(command -v "${JANITOR}" 2>/dev/null)"; then
+  setsid "${JANITOR_BIN}" --port "${CDP_PORT}" --daemon >/dev/null 2>&1 </dev/null &
+fi
+
 exec bmullvad-join -- "${CHROME}" \
   --user-data-dir="${PROFILE}" \
   --remote-debugging-port="${CDP_PORT}" \
@@ -70,7 +82,11 @@ exec bmullvad-join -- "${CHROME}" \
   --use-angle=swiftshader \
   --disable-session-crashed-bubble \
   --hide-crash-restore-bubble \
+  --restore-last-session \
+  --no-first-run \
+  --no-default-browser-check \
+  --disable-search-engine-choice-screen \
+  --disable-features=ExtensionManifestV2Unsupported,ExtensionManifestV2Disabled,PrivacySandboxSettings4,ChromeWhatsNewUI \
   --allow-legacy-extension-manifests \
-  --disable-features=ExtensionManifestV2Unsupported,ExtensionManifestV2Disabled \
   "${ext_args[@]}" \
   "$@"

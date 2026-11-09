@@ -1,8 +1,19 @@
 { pkgs, ... }:
 
+let
+  swayI3Session = (pkgs.writeTextDir "share/wayland-sessions/sway-i3-port.desktop" ''
+[Desktop Entry]
+Name=Sway (i3 port)
+Comment=i3-style Sway session managed by /home/sf/nixos-config
+Exec=${pkgs.coreutils}/bin/env XDG_CURRENT_DESKTOP=sway XDG_SESSION_DESKTOP=sway NIXOS_OZONE_WL=1 ${pkgs.sway}/bin/sway
+TryExec=${pkgs.sway}/bin/sway
+Type=Application
+DesktopNames=sway;wlroots
+  '').overrideAttrs (_: {
+    providedSessions = [ "sway-i3-port" ];
+  });
+in
 {
-  imports = [ ./observeos-kwin-tree.nix ];
-
   services.xserver = {
     enable = true;
 
@@ -15,12 +26,6 @@
   # Keep GDM as the greeter/login manager, but do not expose a GNOME desktop
   # session by default. Sway is the intended daily driver.
   services.displayManager.gdm.enable = true;
-  services.desktopManager.plasma6.enable = true;
-
-  # The upstream sway.desktop says `Exec=sway`, and the display-manager unit
-  # runs with a narrow store PATH, so put sway's bin on that PATH instead of
-  # shipping a duplicate session with an absolute Exec.
-  systemd.services.display-manager.path = [ pkgs.sway ];
 
   # i3-on-wayland daily driver.
   programs.sway = {
@@ -63,8 +68,12 @@
       };
     };
     extraPortals = with pkgs; [ xdg-desktop-portal-gtk ];
-    config.sway.default = pkgs.lib.mkForce [ "wlr" "gtk" ];
+    config.common.default = [ "wlr" "gtk" ];
   };
+
+  # The upstream sway.desktop says `Exec=sway`. GDM on this host runs with a
+  # narrow PATH, so expose a second explicit session with an absolute Exec.
+  services.displayManager.sessionPackages = [ swayI3Session ];
 
   environment.sessionVariables.NIXOS_OZONE_WL = "1";
 

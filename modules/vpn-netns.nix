@@ -1,8 +1,8 @@
 { pkgs, ... }:
 
 let
-  wgConf = "/home/sf/.config/wireguard/sg.conf";
-  ns = "vpn-sg";
+  wgConf = "/home/sf/.config/wireguard/bmullvad.conf";
+  ns = "vpn-browser";
 
   ctl = pkgs.writeShellScript "bmullvad-ctl" ''
     set -euo pipefail
@@ -75,20 +75,20 @@ in
       ip netns del "$NS" 2>/dev/null || true
       ip netns add "$NS"
 
-      ip link add wg-sg type wireguard
-      ip link set wg-sg netns "$NS"
+      ip link add wg-browser type wireguard
+      ip link set wg-browser netns "$NS"
 
-      printf '%s' "$PRIVKEY" | ip netns exec "$NS" wg set wg-sg private-key /dev/stdin
-      ip netns exec "$NS" wg set wg-sg peer "$PUBKEY" \
+      printf '%s' "$PRIVKEY" | ip netns exec "$NS" wg set wg-browser private-key /dev/stdin
+      ip netns exec "$NS" wg set wg-browser peer "$PUBKEY" \
         endpoint "$ENDPOINT" \
         allowed-ips 0.0.0.0/0,::0/0
 
       for addr in ''${ADDRS//,/ }; do
-        ip -n "$NS" addr add "$addr" dev wg-sg
+        ip -n "$NS" addr add "$addr" dev wg-browser
       done
 
-      ip -n "$NS" link set wg-sg up
-      ip -n "$NS" route add default dev wg-sg
+      ip -n "$NS" link set wg-browser up
+      ip -n "$NS" route add default dev wg-browser
       ip -n "$NS" link set lo up
 
       mkdir -p /etc/netns/"$NS"
@@ -99,10 +99,10 @@ in
     '';
   };
 
-  # Cloak CDP stays on the host loopback even when chrome is in vpn-sg.
+  # Cloak CDP stays on the host loopback even when chrome is in vpn-browser.
   # bind 127.0.0.1 only — do not Funnel 9222.
   systemd.services.vpn-netns-cdp = {
-    description = "Forward host 127.0.0.1:9222 into vpn-sg (Cloak CDP)";
+    description = "Forward host 127.0.0.1:9222 into vpn-browser (Cloak CDP)";
     after = [ "vpn-netns.service" ];
     bindsTo = [ "vpn-netns.service" ];
     partOf = [ "vpn-netns.service" ];

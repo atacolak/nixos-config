@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Mullvad region</title>
+<style>
+  :root {
+    --bg: #1b1b1f;
+    --fg: #e6e6e9;
+    --muted: #9a9aa2;
+    --line: #31313a;
+    --hi: #2a2a33;
+    --accent: #7aa2f7;
+    --ok: #9ece6a;
+    --warn: #e0af68;
+    --err: #f7768e;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    width: 380px;
+    font: 13px/1.45 system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--fg);
+  }
+  header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--line);
+  }
+  #state { font-weight: 600; }
+  #state.connected { color: var(--ok); }
+  #state.stale { color: var(--warn); }
+  #state.disconnected { color: var(--err); }
+  #detail { color: var(--muted); font-size: 11px; margin-left: 2px; }
+  #detail:empty { display: none; }
+
+  /* power button sits between the state word and the relay text */
+  #disconnect {
+    flex: 0 0 auto;
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    background: none;
+    color: var(--muted);
+    cursor: pointer;
+  }
+  #disconnect:hover:not(:disabled) {
+    border-color: var(--err);
+    color: var(--err);
+  }
+  #disconnect:disabled { opacity: .35; cursor: default; }
+  #disconnect svg { width: 12px; height: 12px; }
+  header .spacer { flex: 1 1 auto; }
+
+  #search {
+    width: calc(100% - 24px);
+    margin: 10px 12px 6px;
+    padding: 7px 9px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: #141418;
+    color: var(--fg);
+    font: inherit;
+  }
+  #search:focus { outline: none; border-color: var(--accent); }
+  ul { list-style: none; margin: 0; padding: 0 6px 8px; max-height: 330px; overflow-y: auto; }
+  li button {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    width: 100%;
+    padding: 6px 8px;
+    border: 0;
+    border-radius: 5px;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+  li button:hover, li button:focus { background: var(--hi); outline: none; }
+  li[data-current="1"] button { color: var(--accent); }
+  .flag { font-size: 16px; line-height: 1; flex: 0 0 auto; }
+  .name { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cc { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+  .mark { color: var(--accent); font-size: 11px; }
+  #err { padding: 0 12px 10px; color: var(--err); font-size: 12px; }
+  #err:empty { display: none; }
+  footer { padding: 7px 12px; border-top: 1px solid var(--line); color: var(--muted); font-size: 11px; }
+</style>
+</head>
+<body>
+<header>
+  <span id="state">…</span>
+  <button id="disconnect" type="button" title="disconnect the browser tunnel" disabled>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"
+         stroke-linecap="round" aria-hidden="true">
+      <path d="M12 3v9" />
+      <path d="M6.4 6.4a8 8 0 1 0 11.2 0" />
+    </svg>
+  </button>
+  <span id="detail"></span>
+  <span class="spacer"></span>
+</header>
+
+<input id="search" type="text" placeholder="search a country or country code" autocomplete="off" spellcheck="false">
+
+<ul id="list"></ul>
+<div id="err"></div>
+<footer id="footer"></footer>
+
+<script src="popup.js"></script>
+</body>
+</html>

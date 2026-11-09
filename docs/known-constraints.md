@@ -154,8 +154,8 @@ roblox.com in firefox, then Play (opens `roblox-player://`).
 
 ## browser-only mullvad
 
-`bmullvad` is the mullvad CLI for browsers only. it owns netns `vpn-sg`.
-identity is `~/.config/wireguard/sg.conf`; the peer comes from
+`bmullvad` is the mullvad CLI for browsers only. it owns netns `vpn-browser`.
+identity is `~/.config/wireguard/bmullvad.conf`; the peer comes from
 `~/.config/bmullvad/peer` (via `bmullvad relay set location`).
 default location is Amsterdam (`nl ams`). it is not system `mullvad` and it
 does not change host routing or tailscale.
@@ -163,7 +163,7 @@ does not change host routing or tailscale.
 `cloak` and `mullvad-browser` join that netns at launch if it is up, else
 clearnet. firefox stays on the host net. there is no `mullvad-sg`.
 
-Cloak CDP is always host `127.0.0.1:9222`. when chrome is in `vpn-sg`,
+Cloak CDP is always host `127.0.0.1:9222`. when chrome is in `vpn-browser`,
 `vpn-netns-cdp` forwards that port into the netns. do not Funnel 9222.
 
 launch-time join only: `bmullvad connect` does not move windows already open.

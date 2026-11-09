@@ -1,0 +1,82 @@
+#!/usr/bin/env python3
+"""Native messaging host bridging the Cloak extension to bmullvad.
+
+Chrome native messaging frames messages as a 4-byte little-endian length
+followed by UTF-8 JSON. Everything the extension needs is one request in,
+one reply out, so this stays a thin pipe over `bmullvad ext`.
+"""
+
+import json
+import os
+import struct
+import subprocess
+import sys
+
+BMULLVAD = os.environ.get("BMULLVAD", "/run/current-system/sw/bin/bmullvad")
+
+
+def read_message(stream):
+    header = stream.read(4)
+    if len(header) < 4:
+        return None
+    (length,) = struct.unpack("<I", header)
+    if length == 0 or length > 8 * 1024 * 1024:
+        return None
+    body = stream.read(length)
+    if len(body) < length:
+        return None
+    return body.decode("utf-8")
+
+
+def write_message(stream, payload):
+    raw = json.dumps(payload).encode("utf-8")
+    stream.write(struct.pack("<I", len(raw)))
+    stream.write(raw)
+    stream.flush()
+
+
+def reply(payload):
+    write_message(sys.stdout.buffer, payload)
+
+
+def main():
+    request = read_message(sys.stdin.buffer)
+    if request is None:
+        reply({"error": "no message"})
+        return 1
+
+    try:
+        proc = subprocess.run(
+            [BMULLVAD, "ext"],
+            input=request,
+            capture_output=True,
+            text=True,
+            timeout=90,
+        )
+    except subprocess.TimeoutExpired:
+        reply({"error": "bmullvad timed out"})
+        return 1
+    except OSError as exc:
+        reply({"error": "cannot run bmullvad: %s" % exc})
+        return 1
+
+    out = (proc.stdout or "").strip()
+    if not out:
+        detail = (proc.stderr or "").strip().splitlines()
+        reply({"error": detail[-1] if detail else "bmullvad returned nothing"})
+        return 1
+
+    # bmullvad ext prints exactly one JSON line; be forgiving about noise.
+    line = out.splitlines()[-1]
+    try:
+        parsed = json.loads(line)
+    except json.JSONDecodeError:
+        reply({"error": "unreadable reply from bmullvad"})
+        return 1
+
+    reply(parsed)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

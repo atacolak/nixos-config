@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Launch-time join: run a command in vpn-sg when bmullvad is up, else host net.
+# Launch-time join: run a command in vpn-browser when bmullvad is up, else host net.
 set -euo pipefail
 
 NSEXEC="${BMULLVAD_NSEXEC:-/etc/bmullvad/nsexec}"
-NS_PATH="${BMULLVAD_NS_PATH:-/var/run/netns/vpn-sg}"
+NS_PATH="${BMULLVAD_NS_PATH:-/var/run/netns/vpn-browser}"
 SUDO="${BMULLVAD_SUDO:-/run/wrappers/bin/sudo}"
 
 if [[ "${1:-}" == "--" ]]; then

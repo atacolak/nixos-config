@@ -1,0 +1,104 @@
+.
+|-- AGENTS.md
+|-- README.md
+|-- docs
+|   |-- decisions.md
+|   |-- known-constraints.md
+|   |-- rollback.md
+|   |-- runbooks
+|   |   |-- add-package.md
+|   |   |-- bluetooth.md
+|   |   |-- cloak.md
+|   |   |-- desktop-install.md
+|   |   |-- handy.md
+|   |   |-- home-manager-file.md
+|   |   |-- rebuild.md
+|   |   |-- roblox.md
+|   |   |-- sway-keybind.md
+|   |   `-- vscode.md
+|   `-- verification.md
+|-- files
+|   `-- vscode
+|       |-- place-templates.sh
+|       |-- vscode_keybindings.json
+|       `-- vscode_settings.json
+|-- flake.lock
+|-- flake.nix
+|-- home
+|   |-- extensions
+|   |   `-- atacol
+|   |       |-- package.json
+|   |       `-- themes
+|   |           `-- flexoki-dark-blue-dark-plus-color-theme.json
+|   |-- files
+|   |   |-- fuzzel
+|   |   |   `-- fuzzel.ini
+|   |   |-- i3status-rust
+|   |   |   `-- config.toml
+|   |   |-- kitty
+|   |   |   |-- kitty.conf
+|   |   |   `-- opacity.conf
+|   |   |-- safeeyes
+|   |   |   `-- safeeyes.json
+|   |   |-- sway
+|   |   |   |-- config
+|   |   |   `-- wallpaper.jpg
+|   |   `-- swaync
+|   |       |-- config.json
+|   |       `-- style.css
+|   |-- scripts
+|   |   |-- airpods-fix
+|   |   |-- audio-input-toggle
+|   |   |-- audio-toggle
+|   |   |-- cloak-session
+|   |   |-- firefox-session
+|   |   |-- handy-sway-start
+|   |   |-- hibernate-confirm
+|   |   |-- kitty-shade
+|   |   |-- launch-fuzzel
+|   |   |-- launch-roblox
+|   |   |-- mullvad-sg
+|   |   |-- nixrebuild
+|   |   |-- nixrollback
+|   |   |-- rhtml
+|   |   |-- sway-cycle-tab-sibling
+|   |   |-- sway-spawn-here
+|   |   |-- sway-tree-path
+|   |   |-- task-terminal
+|   |   `-- wmutil
+|   `-- sf.nix
+|-- hosts
+|   |-- desktop
+|   |   |-- bluetooth.nix
+|   |   |-- configuration.nix
+|   |   |-- hardware-configuration.nix
+|   |   |-- nvidia.nix
+|   |   `-- wifi.nix
+|   `-- laptop
+|       |-- bluetooth.nix
+|       |-- configuration.nix
+|       |-- hardware-configuration.nix
+|       |-- keyboard.nix
+|       `-- lid.nix
+|-- modules
+|   |-- common.nix
+|   |-- desktop.nix
+|   |-- flatpak.nix
+|   |-- herdr.nix
+|   |-- locale.nix
+|   |-- networking.nix
+|   |-- nix.nix
+|   |-- packages.nix
+|   |-- power.nix
+|   |-- user.nix
+|   `-- vpn-netns.nix
+|-- pkgs
+|   |-- handy-0.8.3.nix
+|   |-- handy.nix
+|   |-- herdr.nix
+|   |-- modern-minimal-ui-sounds.nix
+|   `-- netbird.nix
+`-- scripts
+    `-- install-desktop.sh
+
+23 directories, 79 files

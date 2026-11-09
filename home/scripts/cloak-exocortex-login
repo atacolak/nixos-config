@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# SDK 0.7.0, immutable upstream 1cc093aef0e50b3f5c27fc16b26314add843203a.
+# The staging owner installs this isolated SDK; this command never downloads or
+# launches a browser. License input belongs only in the SDK's private prompt.
+set -euo pipefail
+sdk="${XDG_DATA_HOME:-$HOME/.local/share}/cloak-exocortex/sdk-0.7.0"
+
+fail() { printf 'cloak-exocortex-login: %s\n' "$*" >&2; exit 2; }
+case "${1:-}" in
+  --help)
+    [[ $# == 1 ]] || fail 'no key or extra arguments accepted'
+    printf '%s\n' 'run cloak-exocortex-login in a private laptop terminal; enter any key only at the private prompt' 'use --check to verify the staged SDK without login'
+    exit 0
+    ;;
+  --check) [[ $# == 1 ]] || fail 'no key or extra arguments accepted' ;;
+  "") [[ $# == 0 ]] || fail 'no key arguments accepted' ;;
+  *) fail 'no key arguments accepted; use the private prompt' ;;
+esac
+[[ -x "$sdk/bin/python" && -x "$sdk/bin/cloakbrowser" ]] || fail 'isolated SDK is not staged; return this readiness issue to its owner'
+version="$("$sdk/bin/python" -c 'import importlib.metadata; print(importlib.metadata.version("cloakbrowser"))')"
+[[ "$version" == 0.7.0 ]] || fail 'staged SDK version does not match the reviewed release'
+if [[ "${1:-}" == --check ]]; then
+  printf '%s\n' 'cloak-exocortex-login: isolated SDK 0.7.0 is available; no login or browser launch'
+  exec "$sdk/bin/cloakbrowser" --help
+fi
+[[ -t 0 && -t 2 ]] || fail 'run this command in a private interactive laptop terminal; never pass a key in arguments or chat'
+exec "$sdk/bin/cloakbrowser" login

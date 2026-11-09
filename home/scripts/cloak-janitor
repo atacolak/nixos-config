@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+# cloak-janitor — close tabs that extensions open by themselves.
+#
+# Chromium fires runtime.onInstalled with reason="install" on *every* launch
+# when an extension is loaded with --load-extension, not just on a real
+# install. Extensions that treat that as "first run" reopen their welcome or
+# release-notes page every single time, and --restore-last-session faithfully
+# brings those tabs back on the next launch. The result is a pile of promo
+# tabs nobody asked for.
+#
+# There is no Chromium switch for this and no way to stop an extension from
+# calling tabs.create(). So: right after launch, close any tab whose URL is
+# a known self-opened promo page. This only ever closes exactly those URLs,
+# never anything the operator opened.
+#
+# Usage: cloak-janitor [--port N] [--wait SECONDS] [--daemon]
+#   runs once by default; --daemon keeps sweeping while the browser lives.
+
+set -euo pipefail
+
+PORT=9222
+WAIT=6
+DAEMON=0
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --port) PORT="${2:?}"; shift 2 ;;
+    --wait) WAIT="${2:?}"; shift 2 ;;
+    --daemon) DAEMON=1; shift ;;
+    -h|--help)
+      sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'
+      exit 0
+      ;;
+    *) echo "cloak-janitor: unknown arg $1" >&2; exit 2 ;;
+  esac
+done
+
+CURL="${CURL:-curl}"
+JQ="${JQ:-jq}"
+
+# Only pages an extension opens unprompted on install. Anchored so a normal
+# /help/ click in a real tab is not touched. Single line: jq's test() treats
+# the string as one regex, so embedded newlines would become literal ones.
+PATTERN='^https://darkreader\.org/help(/|$)|^chrome-extension://[a-p]{32}/(help|changelog|welcome)(/|$)|^chrome-extension://[a-p]{32}/options/index\.html#information|^https://bitwarden\.com/browser-start|^https://simple-translate\.sienori\.com/sponsors'
+
+close_promo_tabs() {
+  local list
+  list="$("${CURL}" -sS --max-time 3 "http://127.0.0.1:${PORT}/json/list" 2>/dev/null)" || return 0
+  [[ -z "${list}" ]] && return 0
+
+  local ids
+  ids="$(printf '%s' "${list}" \
+    | "${JQ}" -r --arg pat "${PATTERN}" '
+        [ .[]
+          | select(.type == "page")
+          | select(.url | test($pat))
+          | .id
+        ] | .[]' 2>/dev/null)" || return 0
+
+  [[ -z "${ids}" ]] && return 0
+
+  local id
+  while IFS= read -r id; do
+    [[ -z "${id}" ]] && continue
+    if "${CURL}" -sS --max-time 3 "http://127.0.0.1:${PORT}/json/close/${id}" >/dev/null 2>&1; then
+      echo "cloak-janitor: closed promo tab ${id}"
+    fi
+  done <<< "${ids}"
+}
+
+# The browser needs a moment before CDP answers and the promo tabs exist.
+sleep "${WAIT}"
+close_promo_tabs
+
+if ((DAEMON)); then
+  while "${CURL}" -sS --max-time 3 "http://127.0.0.1:${PORT}/json/version" >/dev/null 2>&1; do
+    sleep 30
+    close_promo_tabs
+  done
+fi

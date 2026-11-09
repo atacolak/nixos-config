@@ -6,7 +6,7 @@ set -euo pipefail
 
 CTL="${BMULLVAD_CTL:-/etc/bmullvad/ctl}"
 NSEXEC="${BMULLVAD_NSEXEC:-/etc/bmullvad/nsexec}"
-NS_PATH="${BMULLVAD_NS_PATH:-/var/run/netns/vpn-sg}"
+NS_PATH="${BMULLVAD_NS_PATH:-/var/run/netns/vpn-browser}"
 SUDO="${BMULLVAD_SUDO:-/run/wrappers/bin/sudo}"
 WG="${WG:-wg}"
 CURL="${CURL:-curl}"
@@ -14,6 +14,7 @@ JQ="${JQ:-jq}"
 
 CONF_DIR="${BMULLVAD_CONF_DIR:-${XDG_CONFIG_HOME:-${HOME}/.config}/bmullvad}"
 CACHE_DIR="${BMULLVAD_CACHE_DIR:-${XDG_CACHE_HOME:-${HOME}/.cache}/bmullvad}"
+WG_CONF="${BMULLVAD_WG_CONF:-${HOME}/.config/wireguard/bmullvad.conf}"
 LOCATION_FILE="${CONF_DIR}/location"
 PEER_FILE="${CONF_DIR}/peer"
 RELAYS_FILE="${CACHE_DIR}/relays.json"
@@ -33,6 +34,7 @@ Commands:
   disconnect   Disconnect from the VPN
   reconnect    Reconnect to any matching VPN relay
   relay        Manage relay and tunnel constraints
+  device       Check or register this config's key on the account
   status       Return the state of the VPN tunnel
   version      Show version
   help         Print this message
@@ -176,16 +178,19 @@ cmd_connect() {
   fi
   ctl_do connect
   if [[ "${wait}" -eq 1 ]]; then
-    local n=0
-    while (( n < 20 )); do
-      if visible_json >/dev/null 2>&1; then
+    local n=0 state=""
+    while (( n < 40 )); do
+      state=$(tunnel_state)
+      if [[ "${state}" == "connected" ]]; then
         cmd_status
         return 0
       fi
       n=$((n + 1))
       sleep 0.5
     done
-    echo "bmullvad: connected, but exit check timed out" >&2
+    echo "bmullvad: netns is up but the tunnel is not passing traffic (${state})" >&2
+    echo "  common cause: this config's key is not registered on the account." >&2
+    echo "  check: bmullvad device check" >&2
     cmd_status || true
     return 1
   fi
@@ -210,10 +215,56 @@ visible_json() {
   fi
 }
 
+# Peer file mixes `hostname=x` and `PublicKey = base64==`. So trim the key
+# and split on the FIRST '=' only: base64 values end with '=' themselves.
 peer_field() {
   local key="$1"
   [[ -f "${PEER_FILE}" ]] || return 0
-  awk -F= -v k="${key}" '$1==k {sub(/^[[:space:]]+/, "", $2); print $2}' "${PEER_FILE}"
+  awk -v k="${key}" '
+    {
+      eq = index($0, "=")
+      if (eq == 0) next
+      name = substr($0, 1, eq - 1)
+      sub(/[ \t]+$/, "", name)
+      if (name != k) next
+      val = substr($0, eq + 1)
+      sub(/^[ \t]+/, "", val)
+      sub(/[ \t]+$/, "", val)
+      print val
+      exit
+    }
+  ' "${PEER_FILE}"
+}
+
+# Seconds since the last WireGuard handshake, or empty when there is none.
+# A netns that exists but never handshook is a dead tunnel, not a connection:
+# that is how an unregistered device key stayed invisible for weeks.
+handshake_age() {
+  local raw=""
+  is_up || return 0
+  [[ -x "${NSEXEC}" ]] || return 0
+  raw=$("${SUDO}" "${NSEXEC}" "${WG}" show wg-browser latest-handshakes 2>/dev/null || true)
+  raw=$(awk '{print $2; exit}' <<<"${raw}")
+  [[ "${raw:-0}" =~ ^[0-9]+$ ]] || return 0
+  (( raw == 0 )) && return 0
+  echo $(( $(date +%s) - raw ))
+}
+
+# One word for the operator: connected, stale, or disconnected.
+tunnel_state() {
+  is_up || { echo disconnected; return 0; }
+  local age="" vis=""
+  age=$(handshake_age)
+  if [[ -z "${age}" ]] || (( age > 180 )); then
+    echo stale
+    return 0
+  fi
+  vis=$(visible_json 2>/dev/null || true)
+  if [[ -n "${vis}" ]] && [[ "$("${JQ}" -r '.mullvad_exit_ip // false' <<<"${vis}")" != "true" ]]; then
+    echo stale
+    return 0
+  fi
+  echo connected
 }
 
 cmd_status() {
@@ -227,7 +278,9 @@ cmd_status() {
     esac
   done
 
-  local vis city country ip exit_ip hostname city_name country_name
+  # every one gets an explicit empty default: `local x` alone is unbound under
+  # `set -u`, so the old form killed status whenever the exit check failed.
+  local vis="" city="" country="" ip="" exit_ip="" hostname="" city_name="" country_name=""
   vis=$(visible_json 2>/dev/null || true)
   if [[ -n "${vis}" ]]; then
     ip=$("${JQ}" -r '.ip // empty' <<<"${vis}")
@@ -239,37 +292,42 @@ cmd_status() {
   city_name=$(peer_field city_name)
   country_name=$(peer_field country_name)
 
+  local state=""
+  state=$(tunnel_state)
+
   if [[ "${json_out}" -eq 1 ]]; then
     "${JQ}" -n \
-      --arg state "$(is_up && echo connected || echo disconnected)" \
+      --arg state "${state}" \
       --arg relay "${hostname}" \
       --arg ip "${ip:-}" \
       --arg city "${city:-}" \
       --arg country "${country:-}" \
       --argjson mullvad "${exit_ip:-false}" \
       '{state:$state, relay:$relay, ip:$ip, city:$city, country:$country, mullvad_exit_ip:$mullvad}'
-    is_up
+    [[ "${state}" == "connected" ]]
     return
   fi
 
-  if is_up; then
-    echo "Connected"
+  case "${state}" in
+    connected) echo "Connected" ;;
+    stale) echo "Connected, but not passing traffic (relay unreachable or device key rejected)" ;;
+    *) echo "Disconnected" ;;
+  esac
+  if [[ "${state}" != "disconnected" ]]; then
     if [[ -n "${hostname}" ]]; then
       echo "    Relay:                  ${hostname}"
     fi
     if [[ -n "${city_name}" || -n "${country_name}" ]]; then
       echo "    Location:               ${city_name:-?}, ${country_name:-?}"
     fi
-  else
-    echo "Disconnected"
   fi
   if [[ -n "${ip}" ]]; then
     echo "    Visible location:       ${country:-?}${city:+, ${city}}. IPv4: ${ip}"
   fi
   if [[ "${verbose}" -eq 1 ]] && is_up; then
-    "${SUDO}" "${NSEXEC}" "${WG}" show wg-sg || true
+    "${SUDO}" "${NSEXEC}" "${WG}" show wg-browser || true
   fi
-  is_up
+  [[ "${state}" == "connected" ]]
 }
 
 cmd_relay_get() {
@@ -308,8 +366,30 @@ cmd_relay_set_location() {
   resolve_peer
   echo "Relay constraint: ${COUNTRY:-any} ${CITY} ${HOSTNAME} -> $(peer_field hostname)"
   if is_up; then
-    ctl_do reconnect
+    swap_peer_in_place
   fi
+}
+
+# Point the running tunnel at the new peer without recreating the netns.
+# A full reconnect would delete vpn-browser, which kills every process inside it —
+# that is the browser. So: drop the old peer, add the new one, keep the ns.
+swap_peer_in_place() {
+  local endpoint old_peer new_peer
+  endpoint=$(peer_field Endpoint)
+  new_peer=$(peer_field PublicKey)
+  if [[ -z "${endpoint}" || -z "${new_peer}" ]]; then
+    echo "bmullvad: peer file incomplete; run relay set location first" >&2
+    return 1
+  fi
+  # the old peer's public key is whatever wg currently has configured
+  old_peer=$("${SUDO}" "${NSEXEC}" "${WG}" show wg-browser peers 2>/dev/null | head -1)
+  if [[ -n "${old_peer}" ]]; then
+    "${SUDO}" "${NSEXEC}" "${WG}" set wg-browser peer "${old_peer}" remove
+  fi
+  "${SUDO}" "${NSEXEC}" "${WG}" set wg-browser peer "${new_peer}" \
+    endpoint "${endpoint}" \
+    allowed-ips 0.0.0.0/0,::0/0 \
+    persistent-keepalive 25
 }
 
 cmd_relay() {
@@ -353,6 +433,178 @@ cmd_version() {
   echo "bmullvad (browser-only Mullvad)"
 }
 
+# The private key in bmullvad.conf must belong to a device registered on the account.
+# If it does not, WireGuard never handshakes and the netns sits there looking
+# connected. Check it explicitly rather than discovering it by symptom.
+account_number() {
+  local acc="${BMULLVAD_ACCOUNT:-}"
+  if [[ -z "${acc}" ]] && command -v mullvad >/dev/null 2>&1; then
+    acc=$(mullvad account get 2>/dev/null | sed -n 's/^Mullvad account: *//p' | tr -d ' ')
+  fi
+  [[ -n "${acc}" ]] || return 1
+  printf '%s' "${acc}"
+}
+
+access_token() {
+  local acc
+  acc=$(account_number) || {
+    echo "bmullvad: cannot read the Mullvad account number (set BMULLVAD_ACCOUNT)" >&2
+    return 1
+  }
+  "${CURL}" -fsS -X POST -H 'Content-Type: application/json' \
+    -d "{\"account_number\":\"${acc}\"}" \
+    https://api.mullvad.net/auth/v1/token | "${JQ}" -r '.access_token'
+}
+
+local_pubkey() {
+  [[ -f "${WG_CONF}" ]] || return 1
+  awk '/^PrivateKey/ {sub(/^PrivateKey *= */, ""); print}' "${WG_CONF}" |
+    "${WG}" pubkey
+}
+
+cmd_device() {
+  local action="${1:-check}"
+  case "${action}" in
+    check|register) ;;
+    -h|--help) echo "Usage: bmullvad device [check|register]"; exit 0 ;;
+    *) echo "bmullvad device: usage: bmullvad device [check|register]" >&2; exit 2 ;;
+  esac
+
+  local pub token devices found
+  pub=$(local_pubkey) || { echo "bmullvad: missing ${WG_CONF}" >&2; exit 1; }
+  token=$(access_token) || exit 1
+  devices=$("${CURL}" -fsS -H "Authorization: Bearer ${token}" \
+    https://api.mullvad.net/accounts/v1/devices) || {
+    echo "bmullvad: could not list devices" >&2
+    exit 1
+  }
+  found=$("${JQ}" -r --arg p "${pub}" \
+    '[.[] | select(.pubkey == $p)] | .[0] // empty | "\(.name) \(.ipv4_address)"' <<<"${devices}")
+
+  if [[ -n "${found}" ]]; then
+    echo "Device key registered: ${found}"
+    return 0
+  fi
+
+  echo "Device key NOT registered on the account." >&2
+  echo "  pubkey: ${pub}" >&2
+  echo "  without this, vpn-browser starts but never handshakes." >&2
+  if [[ "${action}" != "register" ]]; then
+    echo "  fix: bmullvad device register" >&2
+    return 1
+  fi
+
+  local resp
+  resp=$("${CURL}" -fsS -X POST -H 'Content-Type: application/json' \
+    -H "Authorization: Bearer ${token}" \
+    -d "{\"pubkey\":\"${pub}\",\"hijack_dns\":false}" \
+    https://api.mullvad.net/accounts/v1/devices) || {
+    echo "bmullvad: device registration failed" >&2
+    exit 1
+  }
+  "${JQ}" -r '"Registered device: \(.name) \(.ipv4_address)"' <<<"${resp}"
+  echo "note: the address Mullvad assigned may differ from the one in ${WG_CONF}."
+}
+
+# --- extension protocol -----------------------------------------------------
+# The Cloak extension cannot run commands, so it speaks JSON over the native
+# messaging host. One request on stdin, one reply on stdout. Never both logs
+# and JSON on stdout: chrome parses the whole stream.
+ext_reply() {
+  "${JQ}" -c -n "$@"
+}
+
+ext_list() {
+  ensure_relays
+  "${JQ}" -c '
+    { relays: [
+        .[]
+        | select(.active == true)
+        | { cc: .country_code, cn: .country_name,
+            cityCode: .city_code, city: .city_name } ] }
+  ' "${RELAYS_FILE}"
+}
+
+# Local-only tunnel state: no network round trip, so the popup stays instant.
+local_state() {
+  if ! is_up; then
+    echo disconnected
+    return 0
+  fi
+  local age
+  age=$(handshake_age)
+  if [[ -z "${age}" ]] || (( age > 180 )); then
+    echo stale
+  else
+    echo connected
+  fi
+}
+
+ext_status() {
+  local state relay city country codename ip=""
+  state=$(local_state)
+  relay=$(peer_field hostname)
+  city=$(peer_field city_name)
+  country=$(peer_field country_name)
+  # country_code drives the little flag badge on the toolbar icon
+  codename=$(peer_field country_code)
+
+  ext_reply --arg state "${state}" --arg relay "${relay}" --arg ip "${ip}" \
+    --arg city "${city}" --arg country "${country}" --arg cc "${codename}" \
+    '{state:$state, relay:$relay, ip:$ip, city:$city, country:$country, cc:$cc}'
+}
+
+# Tear the tunnel down. Separate from `down` on purpose: this answers JSON on
+# stdout, and the ctl path must not leak any text into that stream.
+ext_down() {
+  "${SUDO}" "${CTL}" disconnect >&2 2>/dev/null || true
+  ext_reply --arg state "$(local_state)" '{state:$state}'
+}
+
+ext_set() {
+  local cc="$1" city="$2"
+  [[ -n "${cc}" ]] || { ext_reply --arg e "missing country code" '{error:$e}'; return 1; }
+  # keep stdout clean: the switch writes its own text, so send it to stderr
+  if [[ -n "${city}" ]]; then
+    cmd_relay_set_location "${cc}" "${city}" >&2 || {
+      ext_reply --arg e "could not switch" '{error:$e}'; return 1
+    }
+  else
+    cmd_relay_set_location "${cc}" >&2 || {
+      ext_reply --arg e "could not switch" '{error:$e}'; return 1
+    }
+  fi
+  ext_reply --arg relay "$(peer_field hostname)" --arg state "$(tunnel_state)" \
+    '{relay:$relay, state:$state}'
+}
+
+# Read one JSON request and answer it. Used as the native messaging host body.
+cmd_ext() {
+  local req op
+  req=$(cat)
+  op=$("${JQ}" -r '.op // empty' <<<"${req}" 2>/dev/null) || {
+    ext_reply --arg e "bad request" '{error:$e}'
+    return 1
+  }
+  case "${op}" in
+    list) ext_list ;;
+    status) ext_status ;;
+    down) ext_down ;;
+    set)
+      ext_set "$("${JQ}" -r '.cc // empty' <<<"${req}")" \
+              "$("${JQ}" -r '.city // empty' <<<"${req}")"
+      ;;
+    "")
+      ext_reply --arg e "missing op" '{error:$e}'
+      return 1
+      ;;
+    *)
+      ext_reply --arg e "unknown op: ${op}" '{error:$e}'
+      return 1
+      ;;
+  esac
+}
+
 cmd="${1:-}"
 shift || true
 case "${cmd}" in
@@ -361,6 +613,8 @@ case "${cmd}" in
   reconnect) cmd_reconnect "$@" ;;
   up) cmd_connect "$@" ;;
   status) cmd_status "$@" ;;
+  device) cmd_device "$@" ;;
+  ext) cmd_ext "$@" ;;
   relay) cmd_relay "$@" ;;
   version|--version|-V) cmd_version ;;
   help|--help|-h) usage 0 ;;

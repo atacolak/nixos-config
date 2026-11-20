@@ -164,5 +164,5 @@ stop_sudo_keep
 echo ">> now $(readlink /run/current-system)"
 systemctl --no-pager is-active home-manager-sf.service || true
 systemctl --no-pager is-active netbird || true
-command -v nixrebuild >/dev/null && echo ">> nixrebuild on PATH"
-command -v nixrollback >/dev/null && echo ">> nixrollback on PATH"
+command -v nixrebuild >/dev/null && echo ">> nixrebuild on PATH" || true
+command -v nixrollback >/dev/null && echo ">> nixrollback on PATH" || true

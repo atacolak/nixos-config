@@ -102,6 +102,18 @@ let
     text = builtins.readFile ./scripts/firefox-session;
   };
 
+  nixRebuild = pkgs.writeShellApplication {
+    name = "nixrebuild";
+    runtimeInputs = with pkgs; [ git nix nixos-rebuild sudo systemd hostname coreutils ];
+    text = builtins.readFile ./scripts/nixrebuild;
+  };
+
+  nixRollback = pkgs.writeShellApplication {
+    name = "nixrollback";
+    runtimeInputs = with pkgs; [ nix nixos-rebuild sudo systemd coreutils ];
+    text = builtins.readFile ./scripts/nixrollback;
+  };
+
   bmullvadJoin = pkgs.writeShellApplication {
     name = "bmullvad-join";
     runtimeInputs = with pkgs; [ coreutils ];
@@ -374,6 +386,8 @@ in
     audioInputToggle
     swayKillClean
     viture120hz
+    nixRebuild
+    nixRollback
 
     swayWmutil
     swayI3Msg

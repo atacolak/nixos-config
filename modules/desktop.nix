@@ -12,6 +12,17 @@ DesktopNames=sway;wlroots
   '').overrideAttrs (_: {
     providedSessions = [ "sway-i3-port" ];
   });
+  swayFxSession = (pkgs.writeTextDir "share/wayland-sessions/swayfx.desktop" ''
+[Desktop Entry]
+Name=SwayFX
+Comment=Sway + blur, rounded corners and shadows, via the fx overlay config
+Exec=${pkgs.coreutils}/bin/env XDG_CURRENT_DESKTOP=sway XDG_SESSION_DESKTOP=sway NIXOS_OZONE_WL=1 ${pkgs.swayfx}/bin/sway -c /home/sf/.config/sway/config-fx
+TryExec=${pkgs.swayfx}/bin/sway
+Type=Application
+DesktopNames=sway;wlroots
+  '').overrideAttrs (_: {
+    providedSessions = [ "swayfx" ];
+  });
 in
 {
   services.xserver = {
@@ -76,7 +87,7 @@ in
 
   # The upstream sway.desktop says `Exec=sway`. GDM on this host runs with a
   # narrow PATH, so expose a second explicit session with an absolute Exec.
-  services.displayManager.sessionPackages = [ swayI3Session ];
+  services.displayManager.sessionPackages = [ swayI3Session swayFxSession ];
 
   environment.sessionVariables.NIXOS_OZONE_WL = "1";
 

@@ -649,6 +649,7 @@ in
   '';
 
   xdg.configFile."sway/config".source = ./files/sway/config;
+  xdg.configFile."sway/config-fx".source = ./files/sway/config-fx;
   xdg.configFile."sway/wallpaper.jpg".source = ./files/sway/wallpaper.jpg;
   xdg.configFile."i3status-rust/config.toml".source = ./files/i3status-rust/config.toml;
 

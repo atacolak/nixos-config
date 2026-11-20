@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+mode=1920x1200@119.999Hz
+
+if [ -z "${SWAYSOCK:-}" ]; then
+  for sock in /run/user/"$(id -u)"/sway-ipc.*; do
+    [ -S "$sock" ] || continue
+    if SWAYSOCK="$sock" swaymsg -t get_version >/dev/null 2>&1; then
+      export SWAYSOCK="$sock"
+      break
+    fi
+  done
+fi
+
+[ -n "${SWAYSOCK:-}" ] || exit 0
+
+outputs_needing_mode() {
+  swaymsg -t get_outputs | jq -r '
+    .[]
+    | select(.active)
+    | select(.model == "VITURE")
+    | select(.current_mode.width != 1920 or .current_mode.height != 1200 or .current_mode.refresh != 119999)
+    | .name
+  '
+}
+
+apply() {
+  while IFS= read -r name; do
+    [ -n "$name" ] || continue
+    swaymsg output "$name" mode "$mode" >/dev/null || true
+  done < <(outputs_needing_mode)
+}
+
+apply
+
+swaymsg -t subscribe '["output"]' -m | while IFS= read -r; do
+  apply
+done

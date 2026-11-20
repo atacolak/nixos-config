@@ -84,6 +84,12 @@ let
     text = builtins.readFile ./scripts/i3-msg;
   };
 
+  viture120hz = pkgs.writeShellApplication {
+    name = "viture-120hz";
+    runtimeInputs = with pkgs; [ jq sway ];
+    text = builtins.readFile ./scripts/viture-120hz;
+  };
+
   swayI3Lock = pkgs.writeShellApplication {
     name = "i3-lock";
     runtimeInputs = with pkgs; [ swaylock ];
@@ -287,6 +293,20 @@ in
   home.sessionPath = lib.optionals (osConfig.networking.hostName == "sfnix") [ "/home/sf/.local/bin" ];
   home.stateVersion = "26.05";
 
+  systemd.user.services.viture-120hz = {
+    Unit = {
+      Description = "Force 1920x1200@120Hz on VITURE glasses outputs";
+      PartOf = [ "sway-session.target" ];
+      After = [ "sway-session.target" ];
+    };
+    Service = {
+      ExecStart = "${viture120hz}/bin/viture-120hz";
+      Restart = "on-failure";
+      RestartSec = 2;
+    };
+    Install = { WantedBy = [ "sway-session.target" ]; };
+  };
+
   programs.home-manager.enable = true;
 
   xdg.enable = true;
@@ -353,6 +373,7 @@ in
     audioToggle
     audioInputToggle
     swayKillClean
+    viture120hz
 
     swayWmutil
     swayI3Msg

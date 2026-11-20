@@ -26,6 +26,7 @@ in
   # Keep GDM as the greeter/login manager, but do not expose a GNOME desktop
   # session by default. Sway is the intended daily driver.
   services.displayManager.gdm.enable = true;
+  services.displayManager.defaultSession = "sway";
 
   services.desktopManager.plasma6.enable = true;
 

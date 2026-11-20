@@ -104,13 +104,13 @@ let
 
   nixRebuild = pkgs.writeShellApplication {
     name = "nixrebuild";
-    runtimeInputs = with pkgs; [ git nix nixos-rebuild systemd hostname coreutils ];
+    runtimeInputs = with pkgs; [ git nix nixos-rebuild sudo systemd hostname coreutils ];
     text = builtins.readFile ./scripts/nixrebuild;
   };
 
   nixRollback = pkgs.writeShellApplication {
     name = "nixrollback";
-    runtimeInputs = with pkgs; [ nix nixos-rebuild systemd coreutils ];
+    runtimeInputs = with pkgs; [ nix nixos-rebuild sudo systemd coreutils ];
     text = builtins.readFile ./scripts/nixrollback;
   };
 
@@ -310,6 +310,7 @@ in
       Description = "Force 1920x1200@120Hz on VITURE glasses outputs";
       PartOf = [ "sway-session.target" ];
       After = [ "sway-session.target" ];
+      StartLimitIntervalSec = 0;
     };
     Service = {
       ExecStart = "${viture120hz}/bin/viture-120hz";

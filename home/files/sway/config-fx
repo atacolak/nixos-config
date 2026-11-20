@@ -11,5 +11,5 @@ corner_radius 12
 shadows enable
 shadow_blur_radius 20
 shadow_color #00000099
-default_dim_inactive 0.5
+default_dim_inactive 0.8
 titlebar_separator disable

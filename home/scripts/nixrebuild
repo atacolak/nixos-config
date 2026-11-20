@@ -24,6 +24,7 @@ nixrebuild — sudo nixos-rebuild switch --flake ~/nixos-config#{laptop,desktop}
   nixrebuild --check   alias for --eval
   nixrebuild --dry     password first, then nixos-rebuild dry-run
   nixrebuild --help
+  NIXREBUILD_SKIP_YTDLP=1  keep the locked yt-dlp release
 
 attr is sfnix→laptop, sfub→desktop. override with NIXREBUILD_ATTR.
 refuses to switch if the evaluated config drops services.netbird.enable.
@@ -122,8 +123,14 @@ if [[ "$MODE" != "eval" ]]; then
 fi
 
 if [[ "$MODE" == "switch" ]]; then
-  echo ">> flake update yt-dlp"
-  nix flake update yt-dlp
+  if [[ "${NIXREBUILD_SKIP_YTDLP:-0}" == "1" ]]; then
+    echo ">> yt-dlp: keeping locked release (NIXREBUILD_SKIP_YTDLP=1)"
+  elif nix flake update yt-dlp >/tmp/nixrebuild-ytdlp.log 2>&1; then
+    echo ">> yt-dlp: input updated"
+  else
+    echo "!! yt-dlp: flake update failed, keeping locked revision" >&2
+    tail -n 1 /tmp/nixrebuild-ytdlp.log >&2 || true
+  fi
 fi
 
 echo ">> eval netbird"

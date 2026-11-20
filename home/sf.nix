@@ -104,13 +104,13 @@ let
 
   nixRebuild = pkgs.writeShellApplication {
     name = "nixrebuild";
-    runtimeInputs = with pkgs; [ git nix nixos-rebuild sudo systemd hostname coreutils ];
+    runtimeInputs = with pkgs; [ git nix nixos-rebuild systemd hostname coreutils ];
     text = builtins.readFile ./scripts/nixrebuild;
   };
 
   nixRollback = pkgs.writeShellApplication {
     name = "nixrollback";
-    runtimeInputs = with pkgs; [ nix nixos-rebuild sudo systemd coreutils ];
+    runtimeInputs = with pkgs; [ nix nixos-rebuild systemd coreutils ];
     text = builtins.readFile ./scripts/nixrollback;
   };
 

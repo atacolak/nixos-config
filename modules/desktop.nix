@@ -27,6 +27,8 @@ in
   # session by default. Sway is the intended daily driver.
   services.displayManager.gdm.enable = true;
 
+  services.desktopManager.plasma6.enable = true;
+
   # i3-on-wayland daily driver.
   programs.sway = {
     enable = true;

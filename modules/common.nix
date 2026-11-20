@@ -12,6 +12,7 @@
     ./power.nix
     ./user.nix
     ./vpn-netns.nix
+    ./xr-driver.nix
   ];
 
   boot.loader.systemd-boot.enable = true;

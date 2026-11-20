@@ -40,6 +40,7 @@ in
   services.displayManager.defaultSession = "sway";
 
   services.desktopManager.plasma6.enable = true;
+  services.desktopManager.cosmic.enable = true;
 
   # i3-on-wayland daily driver.
   programs.sway = {

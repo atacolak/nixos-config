@@ -97,6 +97,12 @@ let
     text = builtins.readFile ./scripts/screen-capture;
   };
 
+  snip = pkgs.writeShellApplication {
+    name = "snip";
+    runtimeInputs = with pkgs; [ grim satty wl-clipboard ];
+    text = builtins.readFile ./scripts/snip;
+  };
+
   swayWmutil = pkgs.writeScriptBin "wmutil" ''
     #!${pkgs.python3}/bin/python3
     ${builtins.readFile ./scripts/wmutil}
@@ -388,6 +394,9 @@ in
     screenCapture
     cosmicSnapshot
     cosmicRestore
+    snip
+    satty
+    loupe
     brightnessctl
     playerctl
     networkmanagerapplet
@@ -622,6 +631,12 @@ in
       "application/xml" = [ "firefox.desktop" ];
       "application/pdf" = [ "firefox.desktop" ];
 
+
+      "image/png" = [ "org.gnome.loupe.desktop" ];
+      "image/jpeg" = [ "org.gnome.loupe.desktop" ];
+      "image/gif" = [ "org.gnome.loupe.desktop" ];
+      "image/webp" = [ "org.gnome.loupe.desktop" ];
+      "image/svg+xml" = [ "org.gnome.loupe.desktop" ];
       "text/plain" = [ "vim.desktop" ];
       "text/x-markdown" = [ "vim.desktop" ];
       "text/x-csrc" = [ "vim.desktop" ];

@@ -1,8 +1,11 @@
-{ ... }:
+{ pkgs, ... }:
 
 {
   hardware.enableRedistributableFirmware = true;
-  hardware.graphics.enable = true;
+  hardware.graphics = {
+    enable = true;
+    extraPackages = [ pkgs.vulkan-loader ];
+  };
 
   services.fstrim.enable = true;
   services.fwupd.enable = true;

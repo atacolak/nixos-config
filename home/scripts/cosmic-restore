@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo="$HOME/nixos-config"
+src="$repo/home/files/cosmic-live"
+dst="$HOME/.config/cosmic"
+
+if [ ! -d "$src" ]; then
+  echo "cosmic-restore: no snapshot at $src" >&2
+  exit 1
+fi
+
+mkdir -p "$dst"
+rsync -a --delete "$src"/ "$dst"/
+echo "cosmic settings restored from repo (relogin to apply compositor settings)"

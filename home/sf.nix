@@ -79,6 +79,18 @@ let
     text = builtins.readFile ./scripts/shot-to-clipboard;
   };
 
+  cosmicSnapshot = pkgs.writeShellApplication {
+    name = "cosmic-snapshot";
+    runtimeInputs = with pkgs; [ rsync git coreutils ];
+    text = builtins.readFile ./scripts/cosmic-snapshot;
+  };
+
+  cosmicRestore = pkgs.writeShellApplication {
+    name = "cosmic-restore";
+    runtimeInputs = with pkgs; [ rsync coreutils ];
+    text = builtins.readFile ./scripts/cosmic-restore;
+  };
+
   swayWmutil = pkgs.writeScriptBin "wmutil" ''
     #!${pkgs.python3}/bin/python3
     ${builtins.readFile ./scripts/wmutil}
@@ -110,18 +122,16 @@ let
 
   nixRebuild = pkgs.writeShellApplication {
     name = "nixrebuild";
-    runtimeInputs = with pkgs; [ git nix nixos-rebuild sudo systemd hostname coreutils ];
+    runtimeInputs = with pkgs; [ git nix nixos-rebuild systemd hostname coreutils ];
     text = builtins.readFile ./scripts/nixrebuild;
   };
 
   nixRollback = pkgs.writeShellApplication {
-    name = "nixrollback";
-    runtimeInputs = with pkgs; [ nix nixos-rebuild sudo systemd coreutils ];
+    runtimeInputs = with pkgs; [ nix nixos-rebuild systemd coreutils ];
     text = builtins.readFile ./scripts/nixrollback;
   };
 
   bmullvadJoin = pkgs.writeShellApplication {
-    name = "bmullvad-join";
     runtimeInputs = with pkgs; [ coreutils ];
     text = builtins.readFile ./scripts/bmullvad-join;
   };
@@ -367,6 +377,8 @@ in
     pkgs.handy
     handySwayStart
     shotToClipboard
+    cosmicSnapshot
+    cosmicRestore
     brightnessctl
     playerctl
     networkmanagerapplet
@@ -642,20 +654,9 @@ in
     OnlyShowIn=COSMIC;
   '';
 
-  xdg.configFile."cosmic/com.system76.CosmicSettings.Shortcuts/v1/custom" = {
-    source = ./files/cosmic/shortcuts-custom.ron;
-    force = true;
-  };
-
-  xdg.configFile."cosmic/com.system76.CosmicPanel.Dock/v1/autohover_delay_ms" = {
-    text = "Some(50)";
-    force = true;
-  };
-
-  xdg.configFile."cosmic/com.system76.CosmicPanel.Panel/v1/autohover_delay_ms" = {
-    text = "Some(50)";
-    force = true;
-  };
+  # COSMIC GUI settings live in ~/.config/cosmic and are owned by the GUI.
+  # `cosmic-snapshot` commits them into home/files/cosmic-live on demand;
+  # `cosmic-restore` reapplies the committed state. Do not xdg.configFile them.
 
   xdg.configFile."autostart/blueman.desktop".text = ''
     [Desktop Entry]

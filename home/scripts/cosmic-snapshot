@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo="$HOME/nixos-config"
+src="$HOME/.config/cosmic"
+dst="$repo/home/files/cosmic-live"
+
+if [ ! -d "$src" ]; then
+  echo "cosmic-snapshot: no COSMIC config at $src" >&2
+  exit 1
+fi
+
+mkdir -p "$dst"
+rsync -a --delete "$src"/ "$dst"/
+
+cd "$repo"
+if git diff --quiet -- home/files/cosmic-live && git diff --cached --quiet -- home/files/cosmic-live; then
+  echo "cosmic settings unchanged since last snapshot"
+  exit 0
+fi
+
+git add home/files/cosmic-live
+git commit -m "cosmic: snapshot GUI settings $(date +%Y-%m-%d_%H:%M)" home/files/cosmic-live
+git push origin master
+echo "cosmic settings snapshotted and pushed"

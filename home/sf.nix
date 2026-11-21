@@ -75,7 +75,7 @@ let
 
   shotToClipboard = pkgs.writeShellApplication {
     name = "shot-to-clipboard";
-    runtimeInputs = with pkgs; [ cosmic-screenshot wl-clipboard coreutils libnotify ];
+    runtimeInputs = with pkgs; [ cosmic-screenshot wl-clipboard coreutils findutils libnotify ];
     text = builtins.readFile ./scripts/shot-to-clipboard;
   };
 
@@ -641,6 +641,11 @@ in
     Exec=/etc/profiles/per-user/sf/bin/handy --start-hidden
     OnlyShowIn=COSMIC;
   '';
+
+  xdg.configFile."cosmic/com.system76.CosmicSettings.Shortcuts/v1/custom" = {
+    source = ./files/cosmic/shortcuts-custom.ron;
+    force = true;
+  };
 
   xdg.configFile."kitty/kitty.conf".source = ./files/kitty/kitty.conf;
   xdg.configFile."kitty/opacity.conf".source = ./files/kitty/opacity.conf;

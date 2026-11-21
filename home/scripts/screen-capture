@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+out_dir="${1:-$HOME/Pictures/agent-captures}"
+mkdir -p "$out_dir"
+
+export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+export DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-unix:path=$XDG_RUNTIME_DIR/bus}"
+
+if [ -z "${WAYLAND_DISPLAY:-}" ]; then
+  WAYLAND_DISPLAY="$(systemctl --user show-environment 2>/dev/null | sed -n 's/^WAYLAND_DISPLAY=//p' | head -1)"
+  export WAYLAND_DISPLAY
+fi
+
+if [ -z "${WAYLAND_DISPLAY:-}" ]; then
+  echo "screen-capture: no active wayland session found" >&2
+  exit 1
+fi
+
+dir="$(mktemp -d)"
+trap 'rm -rf "$dir"' EXIT
+
+cosmic-screenshot --interactive=false --save-dir "$dir" --notify=false
+
+png="$(find "$dir" -maxdepth 1 -name '*.png' -print -quit)"
+if [ -z "$png" ]; then
+  echo "screen-capture: no capture produced" >&2
+  exit 1
+fi
+
+dest="$out_dir/$(basename "$png")"
+mv "$png" "$dest"
+echo "$dest"

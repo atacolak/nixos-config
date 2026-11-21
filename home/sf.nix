@@ -91,6 +91,12 @@ let
     text = builtins.readFile ./scripts/cosmic-restore;
   };
 
+  screenCapture = pkgs.writeShellApplication {
+    name = "screen-capture";
+    runtimeInputs = with pkgs; [ cosmic-screenshot coreutils findutils systemd gnused ];
+    text = builtins.readFile ./scripts/screen-capture;
+  };
+
   swayWmutil = pkgs.writeScriptBin "wmutil" ''
     #!${pkgs.python3}/bin/python3
     ${builtins.readFile ./scripts/wmutil}
@@ -379,6 +385,7 @@ in
     pkgs.handy
     handySwayStart
     shotToClipboard
+    screenCapture
     cosmicSnapshot
     cosmicRestore
     brightnessctl

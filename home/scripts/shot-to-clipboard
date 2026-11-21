@@ -12,4 +12,6 @@ if [ -z "$png" ]; then
   exit 1
 fi
 
+
+notify-send "screenshot" "fullscreen copied to clipboard"
 wl-copy -t image/png < "$png"

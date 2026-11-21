@@ -109,5 +109,5 @@ in
 
   # Thunar needs exo-open for "Open Terminal Here" and for launching
   # Terminal=true .desktop apps (vim, etc.).
-  environment.systemPackages = [ pkgs.xfce.exo ];
+  environment.systemPackages = [ pkgs.xfce4-exo ];
 }

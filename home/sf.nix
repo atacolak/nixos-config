@@ -73,6 +73,12 @@ let
     text = builtins.readFile ./scripts/handy-sway-start;
   };
 
+  shotToClipboard = pkgs.writeShellApplication {
+    name = "shot-to-clipboard";
+    runtimeInputs = with pkgs; [ cosmic-screenshot wl-clipboard coreutils libnotify ];
+    text = builtins.readFile ./scripts/shot-to-clipboard;
+  };
+
   swayWmutil = pkgs.writeScriptBin "wmutil" ''
     #!${pkgs.python3}/bin/python3
     ${builtins.readFile ./scripts/wmutil}
@@ -360,6 +366,7 @@ in
     sound-theme-freedesktop
     pkgs.handy
     handySwayStart
+    shotToClipboard
     brightnessctl
     playerctl
     networkmanagerapplet
@@ -626,6 +633,14 @@ in
 ";
 
   xdg.configFile."herdr/config.toml".source = ./files/herdr/config.toml;
+
+  xdg.configFile."autostart/Handy.desktop".text = ''
+    [Desktop Entry]
+    Type=Application
+    Name=Handy
+    Exec=/etc/profiles/per-user/sf/bin/handy --start-hidden
+    OnlyShowIn=COSMIC;
+  '';
 
   xdg.configFile."kitty/kitty.conf".source = ./files/kitty/kitty.conf;
   xdg.configFile."kitty/opacity.conf".source = ./files/kitty/opacity.conf;

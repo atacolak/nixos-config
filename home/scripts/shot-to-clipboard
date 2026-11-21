@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+dir="$(mktemp -d)"
+trap 'rm -rf "$dir"' EXIT
+
+cosmic-screenshot --interactive=false --save-dir "$dir" --notify=false
+
+png="$(ls -t "$dir"/*.png 2>/dev/null | head -1)"
+if [ -z "$png" ]; then
+  notify-send -u critical "screenshot" "no capture produced" >&2 || true
+  exit 1
+fi
+
+wl-copy -t image/png < "$png"

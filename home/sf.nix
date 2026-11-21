@@ -127,11 +127,13 @@ let
   };
 
   nixRollback = pkgs.writeShellApplication {
+    name = "nixrollback";
     runtimeInputs = with pkgs; [ nix nixos-rebuild systemd coreutils ];
     text = builtins.readFile ./scripts/nixrollback;
   };
 
   bmullvadJoin = pkgs.writeShellApplication {
+    name = "bmullvad-join";
     runtimeInputs = with pkgs; [ coreutils ];
     text = builtins.readFile ./scripts/bmullvad-join;
   };

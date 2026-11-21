@@ -1,0 +1,9 @@
+{
+    (modifiers: [Ctrl], key: "space"): Spawn("/etc/profiles/per-user/sf/bin/handy --toggle-transcription"),
+    (modifiers: [Ctrl, Shift], key: "space"): Spawn("/etc/profiles/per-user/sf/bin/handy --toggle-post-process"),
+    (modifiers: [Super], key: "s"): Spawn("/run/current-system/sw/bin/cosmic-screenshot"),
+    (modifiers: [Super, Shift], key: "s"): Spawn("/etc/profiles/per-user/sf/bin/shot-to-clipboard"),
+    (modifiers: [Super, Alt, Shift], key: "s"): Spawn("/run/current-system/sw/bin/cosmic-screenshot --interactive=false --save-dir /home/sf/Pictures/Screenshots"),
+    (modifiers: [Super], key: "t"): Spawn("/etc/profiles/per-user/sf/bin/kitty"),
+    (modifiers: [Super], key: "d"): ToggleStacking,
+}

@@ -217,6 +217,17 @@ let
     '' + builtins.readFile ./scripts/cloak-exocortex-login;
   };
 
+  # Tern is an imperative binary at ~/.local/opt/tern that runs through the
+  # nix-ld shim. COSMIC's app launcher sanitizes the environment it hands to
+  # desktop entries and drops NIX_LD_LIBRARY_PATH, which sends tern's renderer
+  # to a bundled software path that draws its backdrop blur as a solid frost.
+  # The wrapper re-exports the nix-ld library set plus the system Vulkan
+  # loader so launcher-spawned and terminal-spawned tern behave identically.
+  tern = pkgs.writeShellApplication {
+    name = "tern";
+    text = builtins.readFile ./scripts/tern;
+  };
+
   # Chrome native messaging host for the Mullvad-region extension.
   # The extension cannot exec anything, so this is its only way out.
   bmullvadNativeHost = pkgs.writeScriptBin "bmullvad-native-host" (
@@ -457,7 +468,7 @@ in
     rhtml
     bmullvad
     bmullvadNativeHost
-  ] ++ lib.optionals (osConfig.networking.hostName == "sfnix") [ airpodsFix cloakExocortex cloakExocortexLogin ] ++ [
+  ] ++ lib.optionals (osConfig.networking.hostName == "sfnix") [ airpodsFix cloakExocortex cloakExocortexLogin tern ] ++ [
     launchRoblox
     soberUpdate
   ];
@@ -594,6 +605,59 @@ in
     categories = [ "Network" "WebBrowser" ];
     settings = {
       Keywords = "exocortex;cloak;workspace;";
+    };
+  };
+
+  # These deliberately share desktop-file ids with the entries tern installs
+  # into ~/.local/share/applications so the nix-ld-carrying wrapper wins.
+  # A tern self-update rewrites its copies; the next rebuild heals ours.
+  xdg.desktopEntries."so.stencil.tern" = lib.mkIf (osConfig.networking.hostName == "sfnix") {
+    name = "Tern";
+    exec = "${tern}/bin/tern";
+    terminal = false;
+    categories = [ "System" "TerminalEmulator" ];
+    icon = "so.stencil.tern";
+    settings = {
+      StartupWMClass = "so.stencil.tern";
+    };
+  };
+
+  xdg.desktopEntries."so.stencil.tern.open" = lib.mkIf (osConfig.networking.hostName == "sfnix") {
+    name = "Tern";
+    exec = "${tern}/bin/tern --open-file %f";
+    terminal = false;
+    noDisplay = true;
+    mimeType = [
+      "text/plain"
+      "text/markdown"
+      "text/x-source"
+      "image/png"
+      "image/jpeg"
+      "image/gif"
+      "image/webp"
+      "image/svg+xml"
+      "application/x-sqbpro"
+      "application/x-ipynb+json"
+      "application/vnd.sqlite3"
+      "application/x-sqlite3"
+      "application/vnd.apache.parquet"
+      "text/csv"
+      "text/tab-separated-values"
+      "inode/directory"
+    ];
+    settings = {
+      StartupWMClass = "so.stencil.tern";
+    };
+  };
+
+  xdg.desktopEntries."so.stencil.tern.url" = lib.mkIf (osConfig.networking.hostName == "sfnix") {
+    name = "Tern";
+    exec = "${tern}/bin/tern --open-url %u";
+    terminal = false;
+    noDisplay = true;
+    mimeType = [ "x-scheme-handler/tern" ];
+    settings = {
+      StartupWMClass = "so.stencil.tern";
     };
   };
 

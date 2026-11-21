@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+export NIX_LD="/run/current-system/sw/share/nix-ld/lib/ld.so"
+export NIX_LD_LIBRARY_PATH="/run/current-system/sw/share/nix-ld/lib:/run/opengl-driver/lib${NIX_LD_LIBRARY_PATH:+:$NIX_LD_LIBRARY_PATH}"
+
+exec /home/sf/.local/opt/tern/tern "$@"

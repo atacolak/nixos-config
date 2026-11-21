@@ -35,9 +35,9 @@ in
   };
 
   # Keep GDM as the greeter/login manager, but do not expose a GNOME desktop
-  # session by default. Sway is the intended daily driver.
+  # session by default. COSMIC is the daily driver; sway stays selectable.
   services.displayManager.gdm.enable = true;
-  services.displayManager.defaultSession = "sway";
+  services.displayManager.defaultSession = "cosmic";
 
   services.desktopManager.plasma6.enable = true;
   services.desktopManager.cosmic.enable = true;

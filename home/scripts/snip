@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+exec </dev/null
+
 grimshot --notify copy area

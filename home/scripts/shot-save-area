@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+exec </dev/null
+
 mkdir -p "$HOME/Pictures/Screenshots"
 grimshot --notify save area "$HOME/Pictures/Screenshots/$(date +%Y-%m-%d_%H-%M-%S).png"

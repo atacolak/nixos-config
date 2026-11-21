@@ -647,6 +647,26 @@ in
     force = true;
   };
 
+  xdg.configFile."cosmic/com.system76.CosmicPanel.Dock/v1/autohover_delay_ms" = {
+    text = "Some(50)";
+    force = true;
+  };
+
+  xdg.configFile."cosmic/com.system76.CosmicPanel.Panel/v1/autohover_delay_ms" = {
+    text = "Some(50)";
+    force = true;
+  };
+
+  xdg.configFile."autostart/blueman.desktop".text = ''
+    [Desktop Entry]
+    Type=Application
+    Name=Blueman Applet
+    Icon=blueman
+    Exec=blueman-applet
+    Terminal=false
+    NotShowIn=COSMIC;
+  '';
+
   xdg.configFile."kitty/kitty.conf".source = ./files/kitty/kitty.conf;
   xdg.configFile."kitty/opacity.conf".source = ./files/kitty/opacity.conf;
 

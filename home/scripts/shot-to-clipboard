@@ -1,17 +1,4 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-dir="$(mktemp -d)"
-trap 'rm -rf "$dir"' EXIT
-
-cosmic-screenshot --interactive=false --save-dir "$dir" --notify=false
-
-png="$(find "$dir" -maxdepth 1 -name '*.png' -print -quit)"
-if [ -z "$png" ]; then
-  notify-send -u critical "screenshot" "no capture produced" >&2 || true
-  exit 1
-fi
-
-
-notify-send "screenshot" "fullscreen copied to clipboard"
-wl-copy -t image/png < "$png"
+grimshot --notify copy screen

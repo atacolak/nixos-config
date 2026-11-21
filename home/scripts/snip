@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-grim - | satty --filename - --fullscreen current-screen --initial-tool crop --copy-command wl-copy --actions-on-enter save-to-clipboard,exit
+grimshot --notify copy area

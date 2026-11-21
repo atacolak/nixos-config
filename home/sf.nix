@@ -99,8 +99,14 @@ let
 
   snip = pkgs.writeShellApplication {
     name = "snip";
-    runtimeInputs = with pkgs; [ grim satty wl-clipboard ];
+    runtimeInputs = with pkgs; [ sway-contrib.grimshot grim slurp wl-clipboard libnotify ];
     text = builtins.readFile ./scripts/snip;
+  };
+
+  shotSaveArea = pkgs.writeShellApplication {
+    name = "shot-save-area";
+    runtimeInputs = with pkgs; [ sway-contrib.grimshot grim slurp wl-clipboard libnotify coreutils ];
+    text = builtins.readFile ./scripts/shot-save-area;
   };
 
   swayWmutil = pkgs.writeScriptBin "wmutil" ''
@@ -395,6 +401,7 @@ in
     cosmicSnapshot
     cosmicRestore
     snip
+    shotSaveArea
     satty
     loupe
     brightnessctl

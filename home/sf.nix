@@ -105,7 +105,7 @@ let
 
   shotSaveArea = pkgs.writeShellApplication {
     name = "shot-save-area";
-    runtimeInputs = with pkgs; [ sway-contrib.grimshot grim slurp wl-clipboard libnotify coreutils ];
+    runtimeInputs = with pkgs; [ grim slurp zenity libnotify coreutils ];
     text = builtins.readFile ./scripts/shot-save-area;
   };
 

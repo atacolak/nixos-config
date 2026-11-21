@@ -3,5 +3,19 @@ set -euo pipefail
 
 exec </dev/null
 
-mkdir -p "$HOME/Pictures/Screenshots"
-grimshot --notify save area "$HOME/Pictures/Screenshots/$(date +%Y-%m-%d_%H-%M-%S).png"
+tmp="$(mktemp --suffix=.png)"
+trap 'rm -f "$tmp"' EXIT
+
+geo="$(slurp)" || exit 0
+grim -g "$geo" "$tmp"
+
+target="$(zenity --file-selection --save --confirm-overwrite \
+  --title="Save screenshot" \
+  --filename="$HOME/Pictures/Screenshots/screenshot-$(date +%Y-%m-%d_%H-%M-%S).png" \
+  --file-filter="PNG images | *.png *.PNG" || true)"
+
+[ -n "$target" ] || exit 0
+
+mkdir -p "$(dirname "$target")"
+mv "$tmp" "$target"
+notify-send -a screenshot -i "$target" "Screenshot saved" "$target"

@@ -14,7 +14,7 @@ mkdir -p "$dst"
 rsync -a --delete "$src"/ "$dst"/
 
 cd "$repo"
-if git diff --quiet -- home/files/cosmic-live && git diff --cached --quiet -- home/files/cosmic-live; then
+if [ -z "$(git status --porcelain -- home/files/cosmic-live)" ]; then
   echo "cosmic settings unchanged since last snapshot"
   exit 0
 fi

@@ -82,8 +82,9 @@ in
         chooser_cmd = "${pkgs.fuzzel}/bin/fuzzel -d -l 20 -p 'Select source to share: '";
       };
     };
-    extraPortals = with pkgs; [ xdg-desktop-portal-gtk ];
+    extraPortals = with pkgs; [ xdg-desktop-portal-gtk xdg-desktop-portal-cosmic ];
     config.common.default = [ "wlr" "gtk" ];
+    config.cosmic.default = [ "cosmic" "wlr" "gtk" ];
   };
 
   # The upstream sway.desktop says `Exec=sway`. GDM on this host runs with a

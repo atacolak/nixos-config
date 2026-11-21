@@ -9,12 +9,76 @@ trap 'rm -f "$tmp"' EXIT
 geo="$(slurp)" || exit 0
 grim -g "$geo" "$tmp"
 
-target="$(zenity --file-selection --save --confirm-overwrite \
-  --title="Save screenshot" \
-  --filename="$HOME/Pictures/Screenshots/screenshot-$(date +%Y-%m-%d_%H-%M-%S).png" \
-  --file-filter="PNG images | *.png *.PNG" || true)"
+default_name="screenshot-$(date +%Y-%m-%d_%H-%M-%S).png"
+
+# Native COSMIC save dialog through the portal. Exit codes:
+#   0 = picked (prints decoded path on stdout)
+#   2 = user cancelled the dialog
+#   1 = portal unusable (caller falls back to zenity)
+pick_via_portal() {
+  local mon_out handle line uri code
+  mon_out="$(mktemp)"
+  gdbus monitor --session --dest org.freedesktop.portal.Desktop >"$mon_out" 2>/dev/null &
+  local mon=$!
+  sleep 0.3
+
+  handle="$(gdbus call --session \
+    --dest org.freedesktop.portal.Desktop \
+    --object-path /org/freedesktop/portal/desktop \
+    --method org.freedesktop.portal.FileChooser.SaveFile \
+    "" "Save screenshot" \
+    "{'current_name': <'$default_name'>, 'accept_label': <'Save'>}" 2>/dev/null \
+    | sed -n "s/^('\([^']*\)'.*/\1/p")" || true
+
+  if [ -z "${handle:-}" ]; then
+    kill "$mon" 2>/dev/null || true
+    rm -f "$mon_out"
+    return 1
+  fi
+
+  for _ in $(seq 1 120); do
+    if line="$(grep "Response" "$mon_out" | grep "$handle" | tail -1)"; then
+      kill "$mon" 2>/dev/null || true
+      rm -f "$mon_out"
+      code="$(printf '%s' "$line" | sed -n 's/.*Response *(\([0-9]*\).*/\1/p')"
+      uri="$(printf '%s' "$line" | grep -oE "file://[^']+" | head -1)"
+      if [ -n "$uri" ]; then
+        printf '%s' "$uri" | sed 's|^file://||'
+        return 0
+      fi
+      if [ "${code:-1}" = "0" ]; then
+        return 1
+      fi
+      return 2
+    fi
+    sleep 0.5
+  done
+
+  kill "$mon" 2>/dev/null || true
+  rm -f "$mon_out"
+  return 1
+}
+
+portal_rc=0
+target="$(pick_via_portal)" || portal_rc=$?
+
+if [ "$portal_rc" = "2" ]; then
+  exit 0
+fi
+
+if [ -z "$target" ]; then
+  target="$(zenity --file-selection --save --confirm-overwrite \
+    --title="Save screenshot" \
+    --filename="$HOME/Pictures/Screenshots/$default_name" \
+    --file-filter="PNG images | *.png *.PNG" || true)"
+fi
 
 [ -n "$target" ] || exit 0
+
+if [[ "$target" == file://* ]]; then
+  target="${target#file://}"
+fi
+target="$(printf '%b' "${target//%/\\x}")"
 
 mkdir -p "$(dirname "$target")"
 mv "$tmp" "$target"
